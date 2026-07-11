@@ -104,7 +104,7 @@ uint16_t palColor(char c) {
     default: return 0;
   }
 }
-
+// yoS
 const char* GRID_FICUS[11] = {
   "......DLL.......", ".....DLLLL......", "..DLL.LWL.LLD...", ".DLLLL.W.DLLLD..",
   ".DLLL..W..LLD...", "..DD..LWL..D....", ".DLLL.DWD.LLD...", "DLLLLD.W.DLLLD..",
