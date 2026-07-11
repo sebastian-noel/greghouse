@@ -5,11 +5,15 @@
   "type": "module",
   "description": "the greenhouse — a garden group chat. one plant is real. the rest are lying.",
   "scripts": {
+    "postinstall": "npm --prefix client install",
     "start": "concurrently -k -n server,client -c green,cyan \"npm run server\" \"npm run dev\"",
     "server": "node --env-file-if-exists=.env server/index.js",
     "dev": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
+  },
+  "engines": {
+    "node": ">=20.12"
   },
   "dependencies": {
     "express": "^4.21.2",

@@ -23,8 +23,10 @@ greenhouse_cyd/   ESP32 firmware (greenhouse_cyd.ino + memo_audio.h)
 
 ## Running it
 
+Needs **Node ≥ 20.12** (any OS — WSL, macOS, Windows cmd/PowerShell/Git Bash).
+
 ```bash
-npm install && (cd client && npm install)   # once
+npm install         # once — also installs the client's deps (postinstall)
 
 npm start           # ← one command: Node server (:3000) + Vite dev (:5173) together
                     #   open http://localhost:5173 · Ctrl-C stops both
@@ -36,6 +38,9 @@ npm run dev         # Vite dev on :5173 (proxies /api, /ws, /telemetry → :3000
 npm run build       # production: client/dist, served by the Node server
 npm run tunnel      # expose :3000 publicly via cloudflared (share links + CYD)
 ```
+
+`npm start` works the same on every OS — `concurrently` (not a shell `&`) spawns
+both processes, so there's no bash-only syntax to trip up Windows.
 
 - Copy `.env.example` to `.env` for server config (`PORT`, `GOOGLE_CLIENT_ID`,
   `TELEMETRY_UPSTREAM`) — `npm run server` loads it automatically. `.env` is
