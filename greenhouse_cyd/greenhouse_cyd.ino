@@ -23,6 +23,7 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include "esp_timer.h"
+#include "memo_audio.h"    // baked-in general voice fallback, 8 kHz unsigned PCM
 #include "secrets.h"       // WIFI_SSID / WIFI_PASS — copy secrets.h.example, gitignored
 
 // ------------------------------------------------------------ config
@@ -43,7 +44,7 @@ int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 #define META_POLL_MS 5000
 #define WIFICFG_POLL_MS 60000
 #define AUDIO_PIN 26       // DAC1 → onboard amp → SPEAK inner pins
-#define AUDIO_VOLUME_PERCENT 10
+#define AUDIO_VOLUME_PERCENT 50
 #define VOICE_MAX_BYTES 200000  // ≈ 25 s @ 8 kHz
 
 // XPT2046 touch (VSPI — separate bus from the TFT's HSPI)
@@ -198,11 +199,12 @@ esp_timer_handle_t audioTimer = nullptr;
 
 void audioTick(void*) {
   if (voiceGapLeft) { voiceGapLeft--; dacWrite(AUDIO_PIN, 128); return; }
-  if (!voiceLen || !voiceBuf) { dacWrite(AUDIO_PIN, 128); return; }
-  int sample = voiceBuf[voicePos];
+  const size_t length = voiceBuf && voiceLen ? voiceLen : MEMO_AUDIO_LEN;
+  const uint8_t raw = voiceBuf && voiceLen ? voiceBuf[voicePos] : pgm_read_byte(&MEMO_AUDIO[voicePos]);
+  int sample = raw;
   dacWrite(AUDIO_PIN, 128 + ((sample - 128) * AUDIO_VOLUME_PERCENT) / 100);
   voicePos++;
-  if (voicePos >= voiceLen) { voicePos = 0; voiceGapLeft = 24000; } // 3 s of silence, then loop
+  if (voicePos >= length) { voicePos = 0; voiceGapLeft = 24000; } // 3 s of silence, then loop
 }
 
 void clearVoice() {
@@ -215,7 +217,7 @@ void clearVoice() {
   voiceGapLeft = 0;
   esp_timer_start_periodic(audioTimer, 125); // 8 kHz
   free(old);
-  Serial.println("voice cleared: no general recording");
+  Serial.println("voice cleared: using baked-in general recording");
 }
 
 // ------------------------------------------------------------- helpers
@@ -572,6 +574,9 @@ void connectWifi() {
 void setup() {
   Serial.begin(115200);
   Serial.println("\nthe greenhouse — CYD module");
+
+  pinMode(AUDIO_PIN, OUTPUT);
+  dacWrite(AUDIO_PIN, 128);
 
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);
