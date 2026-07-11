@@ -49,6 +49,32 @@ export function chirp(plant, sad) {
   }
 }
 
+// a soft "pour + splash" for watering: decaying filtered noise with a few
+// droplet blips on top. Direct to destination (a deliberate action, not
+// distance-attenuated like the ambient plant voices).
+export function waterSound() {
+  if (!audio.unlocked || audio.muted || !audio.actx) return;
+  const actx = audio.actx, now = actx.currentTime;
+  const dur = 0.5, n = Math.floor(actx.sampleRate * dur);
+  const nb = actx.createBuffer(1, n, actx.sampleRate);
+  const data = nb.getChannelData(0);
+  for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = actx.createBufferSource(); src.buffer = nb;
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+  const ng = actx.createGain(); ng.gain.value = 0.07;
+  src.connect(lp); lp.connect(ng); ng.connect(actx.destination);
+  src.start(now); src.stop(now + dur);
+  for (const [t, f] of [[0.04, 900], [0.2, 1240], [0.34, 1020]]) {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, now + t);
+    g.gain.exponentialRampToValueAtTime(0.08, now + t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.12);
+    o.connect(g); g.connect(actx.destination);
+    o.start(now + t); o.stop(now + t + 0.14);
+  }
+}
+
 export function stopActivePlayback() {
   clearTimeout(audio.loopTimer); audio.loopTimer = null;
   if (!audio.activePlayback) return;

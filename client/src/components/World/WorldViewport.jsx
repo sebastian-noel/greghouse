@@ -9,6 +9,7 @@ import { char, cam, net, peerPos, dragMovedRef } from '../../state/runtime.js';
 import { getWorld, TILE, walkableAt } from '../../engine/worldgen.js';
 import { audio, ensureProximityGain, playClip, stopActivePlayback } from '../../engine/audio.js';
 import { sendNet } from '../../hooks/useGardenSync.js';
+import { waterPlant } from '../../state/actions.js';
 import BgCanvas from './BgCanvas.jsx';
 import PlantSprite from './PlantSprite.jsx';
 import Gardener from './Gardener.jsx';
@@ -16,6 +17,7 @@ import Peer from './Peer.jsx';
 import TouchJoystick from './TouchJoystick.jsx';
 
 const PROX_RANGE = TILE * 4.5; // volume 0 at this edge, 1 on top of the plant
+const WATER_RANGE = TILE * 2.2; // must actually walk up to a plant to water it
 
 export default function WorldViewport() {
   const seed = useStore(s => s.garden.seed);
@@ -84,9 +86,15 @@ export default function WorldViewport() {
   useEffect(() => {
     const down = e => {
       const k = e.key.toLowerCase();
+      const t = e.target;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
+      if (k === 'e' && !typing) {
+        const wid = useStore.getState().nearWaterId;
+        if (wid) { waterPlant(wid); e.preventDefault(); }
+        return;
+      }
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
-        const t = e.target;
-        if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+        if (typing) return;
         char.keys[k] = true; e.preventDefault();
       }
     };
@@ -147,13 +155,19 @@ export default function WorldViewport() {
 
     function proximityCheck() {
       const s = useStore.getState();
-      let best = null, bestD = 1e9;
+      let best = null, bestD = 1e9;         // nearest plant (drives audio)
+      let water = null, waterD = 1e9;       // nearest SIMULATED plant (drives watering)
       s.plants.slice(0, 6).forEach((p, i) => {
         const spot = world.spots[i];
         if (!spot) return;
         const d = Math.hypot(spot.px - char.x, (spot.py - TILE) - char.y);
         if (d < bestD) { bestD = d; best = p; }
+        if (!isHardwarePlant(p) && d < waterD) { waterD = d; water = p; }
       });
+
+      // publish the waterable plant only when it changes (never per-frame churn)
+      const wid = (!s.isVisitor && water && waterD < WATER_RANGE) ? water.id : null;
+      if (wid !== char.waterId) { char.waterId = wid; useStore.setState({ nearWaterId: wid }); }
 
       if (best && bestD < PROX_RANGE) {
         // vol: 0 at trigger edge, 1 right on top — driven live every frame
@@ -188,7 +202,8 @@ export default function WorldViewport() {
       if (char.joy.active) { vx += char.joy.x; vy += char.joy.y; }
 
       const mag = Math.hypot(vx, vy);
-      if (mag > 0.05) {
+      if (char.watering) { vx = 0; vy = 0; } // rooted in place while pouring
+      if (mag > 0.05 && !char.watering) {
         vx /= Math.max(mag, 1); vy /= Math.max(mag, 1);
         if (vx < -0.05) char.dir = -1; else if (vx > 0.05) char.dir = 1;
         const nx = char.x + vx * char.speed * dt;
@@ -198,6 +213,8 @@ export default function WorldViewport() {
         if (walkableAt(world, char.x, ny)) char.y = ny;
         positionChar();
         centerCamOnChar(false); // camera hard-locked while walking (v1)
+      } else if (char.watering) {
+        positionChar(); // keep the body facing the plant while rooted & pouring
       }
       // runs every frame — not just while moving — so gain updates in real time
       proximityCheck();

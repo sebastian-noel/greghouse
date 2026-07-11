@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { LS_STATE } from '../config.js';
+import { LS_STATE, WATER_FX_MS } from '../config.js';
 
 // strips runtime-only fields (decoded audio buffers etc.) before any snapshot
 // leaves the client — localStorage, PUT, or WS sync (v1 cleanPlant)
@@ -53,6 +53,9 @@ export const useStore = create((set, get) => ({
   bubbles: {},            // plantId -> {text, ts}
   peerBubbles: {},        // peerId ('self' for me) -> {text, ts}
   telemetry: {},          // plantId -> {soil, ts, ageMs, stale}
+  nearWaterId: null,      // simulated plant the gardener is close enough to water
+  waterFx: {},            // plantId -> ts ("+N" splash floating over the plant)
+  selfWater: null,        // { dir } while the gardener holds out the pail, else null
 
   // ---- ui
   chatOpen: false, unread: 0,
@@ -104,6 +107,17 @@ export const useStore = create((set, get) => ({
 
   showBubble(plantId, text) {
     set(s => ({ bubbles: { ...s.bubbles, [plantId]: { text, ts: Date.now() } } }));
+  },
+
+  // "+N" splash over the watered plant; auto-clears unless re-triggered
+  showWaterFx(plantId) {
+    const ts = Date.now();
+    set(s => ({ waterFx: { ...s.waterFx, [plantId]: ts } }));
+    setTimeout(() => set(s => {
+      if (s.waterFx[plantId] !== ts) return {}; // a newer watering superseded this one
+      const waterFx = { ...s.waterFx }; delete waterFx[plantId];
+      return { waterFx };
+    }), WATER_FX_MS);
   },
 
   setChat(open) { set(s => ({ chatOpen: open, unread: open ? 0 : s.unread })); },

@@ -1,10 +1,10 @@
-// v1 debug: right-side cream panel — per-plant moisture slider + water +40,
-// sim speed 1/4/10×, reset demo. Hardware plants: read-only, the probe decides.
+// v1 debug: right-side cream panel — per-plant moisture slider + water +20,
+// sim speed 1/4/10/25×, reset demo. Hardware plants: read-only, the probe decides.
 import { useStore, isHardwarePlant, seedPlants } from '../state/store.js';
 import { SPECIES, moodFor } from '../engine/species.js';
 import { onMoodChanged } from '../state/actions.js';
 import { scheduleSync } from '../hooks/useGardenSync.js';
-import { LS_STATE } from '../config.js';
+import { LS_STATE, WATER_AMOUNT } from '../config.js';
 
 export default function DebugPanel() {
   const plants = useStore(s => s.plants);
@@ -46,15 +46,15 @@ export default function DebugPanel() {
                 onChange={e => setMoisture(p, +e.target.value)} />
               <div className="row">
                 <span className="mini">moisture: <b>{Math.round(p.moisture)}</b> — {p.mood}</span>
-                <button className="small" onClick={() => setMoisture(p, p.moisture + 40)}>water +40</button>
+                <button className="small" onClick={() => setMoisture(p, p.moisture + WATER_AMOUNT)}>water +{WATER_AMOUNT}</button>
               </div>
             </>
           )}
         </div>
       ))}
+      <p className="mini" style={{ marginBottom: 4 }}>sim speed:</p>
       <div className="row">
-        <span className="mini">sim speed:</span>
-        {[1, 4, 10].map(s => (
+        {[1, 4, 10, 25].map(s => (
           <button key={s} className="small" style={speed === s ? { background: 'var(--sun)' } : undefined}
             onClick={() => useStore.setState({ speed: s })}>{s}x</button>
         ))}

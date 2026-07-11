@@ -1,5 +1,6 @@
-// v1 header: cream bar, pixel title (long-press/dblclick → debug), spacer,
-// sound toggle, share (owner), + add a plant (hidden for visitors).
+// v1 header: cream bar, pixel title (long-press/dblclick → debug, kept as a
+// shortcut), spacer, sound + debug toggles, share (owner), + add a plant
+// (hidden for visitors).
 import { useRef } from 'react';
 import { useStore } from '../state/store.js';
 import { audio } from '../engine/audio.js';
@@ -19,6 +20,7 @@ function WeatherBadge() {
 export default function Header() {
   const isVisitor = useStore(s => s.isVisitor);
   const muted = useStore(s => s.muted);
+  const debugOpen = useStore(s => s.debugOpen);
   const garden = useStore(s => s.garden);
   const toast = useStore(s => s.toast);
   const openModal = useStore(s => s.openModal);
@@ -58,6 +60,7 @@ export default function Header() {
       <WeatherBadge />
       <span className="spacer" />
       <button className="small" onClick={toggleMute}>sound: {muted ? 'off' : 'on'}</button>
+      {!isVisitor && <button className="small" onClick={toggleDebug}>debug: {debugOpen ? 'on' : 'off'}</button>}
       {!isVisitor && <button className="small" onClick={share}>share</button>}
       {!isVisitor && <button className="small primary" onClick={() => openModal({ type: 'wizard' })}>+ add a plant</button>}
     </header>
