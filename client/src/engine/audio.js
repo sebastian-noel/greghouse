@@ -14,7 +14,7 @@ export const audio = {
 
 export function unlockAudio() {
   try {
-    audio.actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audio.actx) audio.actx = new (window.AudioContext || window.webkitAudioContext)();
     audio.actx.resume();
     const b = audio.actx.createBuffer(1, 220, 22050);
     const src = audio.actx.createBufferSource(); src.buffer = b; src.connect(audio.actx.destination); src.start(0);
@@ -124,10 +124,14 @@ export async function playClip(plant, kind) {
 }
 
 // card play buttons force full volume regardless of where the gardener stands
-export function playClipAtFullVolume(plant, kind) {
+export async function playClipAtFullVolume(plant, kind) {
+  if (audio.muted || !audio.unlocked || !audio.actx) return;
   ensureProximityGain();
   if (audio.proximityGain) audio.proximityGain.gain.value = 1;
   const saved = audio.near;
   audio.near = plant.id; // playClip bails if we're "not near" — cards override
-  playClip(plant, kind).finally(() => { audio.near = saved; });
+  // Keep the override through async decoding; restoring it immediately caused
+  // playClip's range guard to cancel every uncached recording.
+  try { await playClip(plant, kind); }
+  finally { audio.near = saved; }
 }

@@ -44,7 +44,7 @@ int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 #define META_POLL_MS 5000
 #define WIFICFG_POLL_MS 60000
 #define AUDIO_PIN 26       // DAC1 → onboard amp → SPEAK inner pins
-#define AUDIO_VOLUME_PERCENT 50
+#define AUDIO_VOLUME_PERCENT 10
 #define VOICE_MAX_BYTES 200000  // ≈ 25 s @ 8 kHz
 
 // XPT2046 touch (VSPI — separate bus from the TFT's HSPI)

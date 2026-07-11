@@ -2,18 +2,20 @@
 // onSave receives the data URL.
 import { useEffect, useRef, useState } from 'react';
 
-export default function Recorder({ label, onSave }) {
-  const [phase, setPhase] = useState('idle'); // idle | recording | saved | error
-  const [status, setStatus] = useState('up to 5 seconds');
+export default function Recorder({ label, onSave, existingUrl = null }) {
+  const [phase, setPhase] = useState(existingUrl ? 'saved' : 'idle'); // idle | recording | saved | error
+  const [status, setStatus] = useState(existingUrl ? 'saved to this plant. tap play to preview.' : 'up to 5 seconds');
   const [count, setCount] = useState('');
   const recRef = useRef(null);
-  const urlRef = useRef(null);
+  const urlRef = useRef(existingUrl);
+  const previewRef = useRef(null);
   const timersRef = useRef({});
 
   useEffect(() => () => { // unmount: stop any live recording (v1 closeModal stops it)
     const rec = recRef.current;
     if (rec && rec.state === 'recording') { try { rec.stop(); } catch (e) { /* gone */ } }
     clearTimeout(timersRef.current.cap); clearInterval(timersRef.current.count);
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
   }, []);
 
   async function record() {
@@ -21,6 +23,7 @@ export default function Recorder({ label, onSave }) {
       setStatus('mic unavailable — check browser permissions'); setPhase('error'); return;
     }
     try {
+      if (!window.MediaRecorder) throw new Error('recording is not supported by this browser');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
       const mime = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
@@ -32,6 +35,11 @@ export default function Recorder({ label, onSave }) {
         stream.getTracks().forEach(t => t.stop());
         clearTimeout(timersRef.current.cap); clearInterval(timersRef.current.count);
         const blob = new Blob(chunks, { type: mime || 'audio/webm' });
+        if (!blob.size) {
+          setPhase('error'); setCount('');
+          setStatus('no audio was captured — check microphone access and try again');
+          return;
+        }
         const fr = new FileReader();
         fr.onload = () => {
           urlRef.current = fr.result;
@@ -41,14 +49,15 @@ export default function Recorder({ label, onSave }) {
         };
         fr.readAsDataURL(blob);
       };
-      rec.start();
+      // Periodic chunks make stop reliable in Safari as well as Chromium.
+      rec.start(250);
       setPhase('recording'); setStatus('recording...');
       let left = 5; setCount(left + 's');
       timersRef.current.count = setInterval(() => { left--; setCount(Math.max(left, 0) + 's'); }, 1000);
       timersRef.current.cap = setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, 5000);
     } catch (err) {
       setPhase('error');
-      setStatus('mic blocked — allow microphone access in your browser settings, then try again');
+      setStatus(err.message || 'mic blocked — allow microphone access in your browser settings, then try again');
     }
   }
 
@@ -58,7 +67,19 @@ export default function Recorder({ label, onSave }) {
   }
 
   function play() {
-    if (urlRef.current) { try { new Audio(urlRef.current).play().catch(() => {}); } catch (e) { /* blocked */ } }
+    if (!urlRef.current) return;
+    try {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+      // Blob URLs are more reliably playable than a large base64 URL on Safari.
+      const base64 = String(urlRef.current).split(',')[1];
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      previewRef.current = URL.createObjectURL(new Blob([bytes], { type: String(urlRef.current).match(/^data:([^;]+)/)?.[1] || 'audio/webm' }));
+      const preview = new Audio(previewRef.current);
+      preview.onended = preview.onerror = () => {
+        if (previewRef.current) { URL.revokeObjectURL(previewRef.current); previewRef.current = null; }
+      };
+      preview.play().catch(() => setStatus('preview could not play in this browser'));
+    } catch (e) { setStatus('preview could not play this recording'); }
   }
 
   return (

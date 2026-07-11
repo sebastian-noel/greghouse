@@ -68,8 +68,10 @@ export default function PlantCard({ plantId }) {
       </div>
       {rerec && (
         <div>
-          <Recorder label="general voice" onSave={url => saveVoice('voiceGeneralUrl', '_buf_general', url, 'general voice')} />
-          <Recorder label="thirsty voice" onSave={url => saveVoice('voiceThirstyUrl', '_buf_thirsty', url, 'thirsty voice')} />
+          <Recorder label="general voice" existingUrl={plant.voiceGeneralUrl}
+            onSave={url => saveVoice('voiceGeneralUrl', '_buf_general', url, 'general voice')} />
+          <Recorder label="thirsty voice" existingUrl={plant.voiceThirstyUrl}
+            onSave={url => saveVoice('voiceThirstyUrl', '_buf_thirsty', url, 'thirsty voice')} />
         </div>
       )}
       <div className="row end">
