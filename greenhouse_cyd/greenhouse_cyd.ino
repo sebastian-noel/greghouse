@@ -28,12 +28,12 @@
 
 // ------------------------------------------------------------ config
 // Node server — plant meta, voice, wifi provisioning (http:// is fine here)
-const char* SERVER_BASE = "http://192.168.1.50:3000";
+const char* SERVER_BASE = "https://supreme-edge-galaxy-choices.trycloudflare.com";
 
 // Cloud telemetry — API Gateway → Lambda → DynamoDB. Body: {"soilMoisture": N}
 const char* TELEMETRY_ENDPOINT = "https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings";
 
-const char* GARDEN_ID = "REPLACE_ME";               // from the share link (?g=...)
+const char* GARDEN_ID = "tkAuhN86J20";              // from the share link (?g=...)
 const char* PLANT_ID = "p1";
 
 #define SOIL_PIN 35        // ADC1 only — ADC2 is garbage while WiFi is up
@@ -535,6 +535,8 @@ void setup() {
 
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);
+
+  tlsClient.setInsecure(); // hobby device: skip cert verification for the cloud + tunnel
 
   prefs.begin("greenhouse", false);
 
