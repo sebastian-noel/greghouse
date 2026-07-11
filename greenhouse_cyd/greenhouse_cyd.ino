@@ -422,46 +422,74 @@ void drawCloudFail() { // small ☁✕ glyph, top-right
 }
 
 void drawBar(int x, int y, int w, int h, int pct, uint16_t color) {
-  tft.drawRect(x, y, w, h, TFT_WHITE);
+  tft.drawRect(x, y, w, h, 0x1129);                     // ink border
   int fill = (w - 4) * constrain(pct, 0, 100) / 100;
   tft.fillRect(x + 2, y + 2, fill, h - 4, color);
-  tft.fillRect(x + 2 + fill, y + 2, (w - 4) - fill, h - 4, TFT_BLACK);
+  tft.fillRect(x + 2 + fill, y + 2, (w - 4) - fill, h - 4, 0xFFDD); // cream empty
 }
 
 void drawStatsView() {
   const int PX = 24, PY = 36, PW = 272, PH = 168;
-  tft.fillRoundRect(PX, PY, PW, PH, 6, TFT_BLACK);
-  tft.drawRoundRect(PX, PY, PW, PH, 6, TFT_WHITE);
+  tft.fillRoundRect(PX, PY, PW, PH, 6, 0xFFDD);        // cream background
+  tft.drawRoundRect(PX, PY, PW, PH, 6, 0x1129);         // ink border
 
   tft.setTextFont(4);
   tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextColor(0x1129, 0xFFDD);                      // ink on cream
   tft.setTextPadding(0);
   tft.drawString(plant.name, PX + 12, PY + 10);
 
   uint16_t moodCol = (mood == MOOD_HAPPY) ? 0x0726 : (mood == MOOD_THIRSTY) ? 0xFF64 : 0x2D7F;
   const char* moodTxt = (mood == MOOD_HAPPY) ? "happy" : (mood == MOOD_THIRSTY) ? "thirsty" : "drowning";
   tft.setTextDatum(TR_DATUM);
-  tft.setTextColor(moodCol, TFT_BLACK);
+  tft.setTextColor(moodCol, 0xFFDD);                     // mood color on cream
   tft.setTextPadding(120);
   tft.drawString(moodTxt, PX + PW - 12, PY + 10);
 
   tft.setTextFont(2);
   tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextColor(0x1129, 0xFFDD);                      // ink on cream
   tft.setTextPadding(0);
   tft.drawString("soil", PX + 12, PY + 52);
   drawBar(PX + 60, PY + 50, 150, 16, soilPct, moodCol);
   tft.setTextDatum(TR_DATUM);
-  // setTextPadding(84) on right-aligned numerics — kills the "137%" ghost bug
   tft.setTextPadding(84);
+  tft.setTextColor(0x1129, 0xFFDD);                      // ink on cream
   tft.drawString(String(soilPct) + "%", PX + PW - 12, PY + 52);
 
+  // species name + personality lines (mirrors web app's SPECIES table)
+  struct SpeciesDisplay {
+    const char* id;
+    const char* commonName;
+    const char* line1;
+    const char* line2;
+    const char* line3;
+  };
+  static const SpeciesDisplay DISPLAY_TABLE[] = {
+    { "ficus",       "Rubber plant", "Melodramatic. Threatens to",  "drop a leaf over every",    "inconvenience." },
+    { "cactus",      "Cactus",       "Stoic. Openly judgmental",    "about overwatering.",        ""              },
+    { "basil",       "Basil",        "Anxious and needy. Aware it", "is technically a salad",     "ingredient."   },
+    { "pothos",      "Pothos",       "Unbothered. Quietly",         "convinced it is immortal.",  ""              },
+    { "monstera",    "Monstera",     "Influencer energy. Vain",     "about every new leaf.",      ""              },
+    { "snake_plant", "Snake plant",  "Deadpan. Sleeps through",     "everything.",                ""              },
+  };
+
+  const SpeciesDisplay* sp = &DISPLAY_TABLE[3]; // pothos fallback
+  for (int i = 0; i < 6; i++) {
+    if (plant.speciesId == DISPLAY_TABLE[i].id) { sp = &DISPLAY_TABLE[i]; break; }
+  }
+
   tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(0x8C71, TFT_BLACK);
   tft.setTextPadding(0);
-  tft.drawString("raw " + String(lastRaw), PX + 12, PY + 92);
-  tft.drawString("live soil probe - posts every 2s", PX + 12, PY + 122);
+
+  tft.setTextColor(0x1129, 0xFFDD);                      // species name: ink on cream
+  tft.drawString(sp->commonName, PX + 12, PY + 82);
+
+  tft.setTextColor(0x5AC9, 0xFFDD);                      // personality: soil-brown on cream
+  tft.drawString(sp->line1, PX + 12, PY + 104);
+  tft.drawString(sp->line2, PX + 12, PY + 122);
+  if (strlen(sp->line3)) tft.drawString(sp->line3, PX + 12, PY + 140);
+
   if (failedPosts >= 5) drawCloudFail();
 }
 
