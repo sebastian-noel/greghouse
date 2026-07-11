@@ -37,6 +37,13 @@ npm run build       # production: client/dist, served by the Node server
 npm run tunnel      # expose :3000 publicly via cloudflared (share links + CYD)
 ```
 
+## Deploying the shared app
+
+The repository includes `render.yaml` for a GitHub-backed Render deployment.
+In Render, create a new Blueprint instance, connect this repository, and apply
+the Blueprint. Render builds the React client, runs the Express/WebSocket
+server, and redeploys automatically whenever `main` is pushed.
+
 - Copy `.env.example` to `.env` for server config (`PORT`, `GOOGLE_CLIENT_ID`,
   `TELEMETRY_UPSTREAM`) — `npm run server` loads it automatically. `.env` is
   gitignored.

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: greghouse
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm --prefix client ci && npm run build
+    startCommand: npm run server
+    healthCheckPath: /api/config
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
