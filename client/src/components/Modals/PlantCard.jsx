@@ -62,7 +62,6 @@ export default function PlantCard({ plantId }) {
       <p className="mini">{hw ? 'soil moisture' : 'moisture'}: <span>{moist}</span> / 100 — mood: <span>{plant.mood}</span></p>
       <div className="bar"><div className="fill" style={{ width: moist + '%', background: fillColor }} /></div>
       {offline && <OfflineLine ts={telem?.ts} />}
-      {hw && <p className="mini" style={{ marginTop: 6 }}>live from the soil probe — updates every 2 seconds</p>}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'general')}>play general</button>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'thirsty')}>play thirsty</button>
