@@ -33,6 +33,9 @@ npm run build       # production: client/dist, served by the Node server
 npm run tunnel      # expose :3000 publicly via cloudflared (share links + CYD)
 ```
 
+- Copy `.env.example` to `.env` for server config (`PORT`, `GOOGLE_CLIENT_ID`,
+  `TELEMETRY_UPSTREAM`) — `npm run server` loads it automatically. `.env` is
+  gitignored.
 - `PORT` overrides 3000. `GOOGLE_CLIENT_ID` enables Google sign-in and
   disables dev login. Delete `server/data.json` to reset gardens.
 - `ffmpeg` must be on PATH (voice transcoding for the CYD).
@@ -84,6 +87,10 @@ arduino-cli upload -p /dev/cu.usbserial-210 --fqbn esp32:esp32:esp32:UploadSpeed
   proven bare sketch. Before flashing set in the .ino: `SERVER_BASE` (the
   Node server / tunnel URL) and `GARDEN_ID` (from the share link `?g=...`) —
   those two drive the display meta + voice.
+- Copy `greenhouse_cyd/secrets.h.example` to `greenhouse_cyd/secrets.h` and
+  fill in your real WiFi SSID/password — it's gitignored, and the .ino
+  `#include`s it. (A `.env` doesn't help here: the sketch is compiled into
+  the firmware binary, so secrets need a header file instead.)
 - **Recalibrate** if readings drift: watch serial (`soil: raw=NNNN -> NN%`) —
   raw in dry air → `SOIL_RAW_DRY`, raw in a glass of water → `SOIL_RAW_WET`.
 - Touch toggles plant view ↔ stats. `☁✕` in the corner = last 5 telemetry

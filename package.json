@@ -5,7 +5,7 @@
   "type": "module",
   "description": "the greenhouse — a garden group chat. one plant is real. the rest are lying.",
   "scripts": {
-    "server": "node server/index.js",
+    "server": "node --env-file-if-exists=.env server/index.js",
     "dev": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"

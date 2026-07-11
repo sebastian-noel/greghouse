@@ -24,11 +24,9 @@
 #include <XPT2046_Touchscreen.h>
 #include "esp_timer.h"
 #include "memo_audio.h"
+#include "secrets.h"       // WIFI_SSID / WIFI_PASS — copy secrets.h.example, gitignored
 
 // ------------------------------------------------------------ config
-const char* WIFI_SSID = "Stev";                     // compiled-in fallback (2.4 GHz)
-const char* WIFI_PASS = "Sismyname";
-
 // Node server — plant meta, voice, wifi provisioning (http:// is fine here)
 const char* SERVER_BASE = "http://192.168.1.50:3000";
 

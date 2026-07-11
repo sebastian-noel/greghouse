@@ -4,3 +4,5 @@ server/data.json
 .DS_Store
 *.log
 greenhouse_cyd/build/
+.env
+greenhouse_cyd/secrets.h
