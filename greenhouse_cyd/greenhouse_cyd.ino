@@ -33,7 +33,7 @@ const char* SERVER_BASE = "https://supreme-edge-galaxy-choices.trycloudflare.com
 // Cloud telemetry — API Gateway → Lambda → DynamoDB. Body: {"soilMoisture": N}
 const char* TELEMETRY_ENDPOINT = "https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings";
 
-const char* GARDEN_ID = "MYSycbpIr44";              // live garden edited by the web app
+const char* GARDEN_ID = "tkAuhN86J20";              // from the share link (?g=...)
 const char* PLANT_ID = "p1";
 
 #define SOIL_PIN 35        // ADC1 only — ADC2 is garbage while WiFi is up
@@ -44,7 +44,7 @@ int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 #define META_POLL_MS 5000
 #define WIFICFG_POLL_MS 60000
 #define AUDIO_PIN 26       // DAC1 → onboard amp → SPEAK inner pins
-#define AUDIO_VOLUME_PERCENT 10
+#define AUDIO_VOLUME_PERCENT 50
 #define VOICE_MAX_BYTES 200000  // ≈ 25 s @ 8 kHz
 
 // XPT2046 touch (VSPI — separate bus from the TFT's HSPI)
@@ -104,7 +104,7 @@ uint16_t palColor(char c) {
     default: return 0;
   }
 }
-// yoS
+
 const char* GRID_FICUS[11] = {
   "......DLL.......", ".....DLLLL......", "..DLL.LWL.LLD...", ".DLLLL.W.DLLLD..",
   ".DLLL..W..LLD...", "..DD..LWL..D....", ".DLLL.DWD.LLD...", "DLLLLD.W.DLLLD..",
@@ -229,14 +229,30 @@ uint16_t hexToRGB565(const String& hex) { // "#RRGGBB"
   return tft.color565((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
 }
 
+
 int readSoilPercent() {
+  static int history[5] = {50, 50, 50, 50, 50};  // rolling window
+  static int idx = 0;
+
+  // average 16 ADC samples for this reading
   long sum = 0;
   for (int i = 0; i < 16; i++) { sum += analogRead(SOIL_PIN); delay(2); }
   int raw = sum / 16;
   lastRaw = raw;
-  int pct = map(raw, SOIL_RAW_DRY, SOIL_RAW_WET, 0, 100);
+
+  // store in rolling window
+  history[idx] = raw;
+  idx = (idx + 1) % 5;
+
+  // average the window
+  long windowSum = 0;
+  for (int i = 0; i < 5; i++) windowSum += history[i];
+  int smoothedRaw = windowSum / 5;
+
+  int pct = map(smoothedRaw, SOIL_RAW_DRY, SOIL_RAW_WET, 0, 100);
   pct = constrain(pct, 0, 100);
-  Serial.printf("soil: raw=%d -> %d%%\n", raw, pct); // the calibration tool — keep
+
+  Serial.printf("soil: raw=%d smoothed=%d -> %d%%\n", raw, smoothedRaw, pct);
   return pct;
 }
 
@@ -338,18 +354,15 @@ void fetchVoice() {
   if (code != 200) { Serial.printf("voice.pcm -> %d\n", code); http.end(); return; }
   int total = http.getSize(); // may be -1 (chunked)
   if (total > VOICE_MAX_BYTES) { Serial.printf("voice too big: %d\n", total); http.end(); return; }
-  // Cloudflare preserves Content-Length for this endpoint. Allocate the
-  // recording's real size instead of reserving 200 KB on the small ESP heap.
-  const size_t capacity = total > 0 ? (size_t)total : (size_t)VOICE_MAX_BYTES;
-  uint8_t* buf = (uint8_t*)malloc(capacity);
+  uint8_t* buf = (uint8_t*)malloc(VOICE_MAX_BYTES);
   if (!buf) { Serial.println("voice: out of heap"); http.end(); return; }
   WiFiClient* stream = http.getStreamPtr();
   size_t got = 0;
   unsigned long t0 = millis();
-  while (http.connected() && millis() - t0 < 20000 && got < capacity) {
+  while (http.connected() && millis() - t0 < 20000 && got < VOICE_MAX_BYTES) {
     size_t avail = stream->available();
     if (avail) {
-      got += stream->readBytes(buf + got, min(avail, capacity - got));
+      got += stream->readBytes(buf + got, min(avail, (size_t)(VOICE_MAX_BYTES - got)));
       t0 = millis();
     } else if (total >= 0 && (int)got >= total) {
       break;
@@ -444,7 +457,8 @@ void drawBar(int x, int y, int w, int h, int pct, uint16_t color) {
   tft.fillRect(x + 2, y + 2, fill, h - 4, color);
   tft.fillRect(x + 2 + fill, y + 2, (w - 4) - fill, h - 4, 0xFFDD); // cream empty
 }
-
+// yo
+// yo
 void drawStatsView() {
   const int PX = 24, PY = 36, PW = 272, PH = 168;
   tft.fillRoundRect(PX, PY, PW, PH, 6, 0xFFDD);        // cream background
@@ -572,7 +586,7 @@ void connectWifi() {
     delay(8000);
   }
 }
-
+// yo
 // ------------------------------------------------------------- setup/loop
 void setup() {
   Serial.begin(115200);
