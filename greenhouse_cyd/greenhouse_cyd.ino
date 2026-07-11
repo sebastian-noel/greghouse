@@ -452,14 +452,21 @@ void drawCloudFail() { // small ☁✕ glyph, top-right
 }
 // yo 
 void drawBar(int x, int y, int w, int h, int pct, uint16_t color) {
-  // 2px border — outer then inner rect
-  tft.drawRect(x,     y,     w,     h,     0x1129);
-  tft.drawRect(x + 1, y + 1, w - 2, h - 2, 0x1129);
+  // solid border fill
+  tft.fillRect(x, y, w, h, 0x1129);
   
-  // fill inside the 2px border
-  int fill = (w - 6) * constrain(pct, 0, 100) / 100;
-  tft.fillRect(x + 3, y + 3, fill,           h - 6, color);
-  tft.fillRect(x + 3 + fill, y + 3, (w - 6) - fill, h - 6, 0xFFDD);
+  // interior
+  int iw = w - 6;
+  int ih = h - 6;
+  int fill = (iw * constrain(pct, 0, 100) + 50) / 100;  // +50 for rounding
+  
+  // colored portion (only if > 0)
+  if (fill > 0)
+    tft.fillRect(x + 3, y + 3, fill, ih, color);
+  
+  // cream remainder (only if not full)
+  if (fill < iw)
+    tft.fillRect(x + 3 + fill, y + 3, iw - fill, ih, 0xFFDD);
 }
 
 // yo
