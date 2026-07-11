@@ -1,4 +1,4 @@
-// the greenhouse v2 — CYD hardware module (ESP32-2432S028, ST7789 + XPT2046)
+// the greenhouse — CYD hardware module (ESP32-2432S028, ST7789 + XPT2046)
 //
 // Reads a capacitive soil probe on GPIO35 and POSTs it to the CLOUD telemetry
 // endpoint every 2 s. Derives its own mood locally via the same thresholds
@@ -531,7 +531,7 @@ void connectWifi() {
 // ------------------------------------------------------------- setup/loop
 void setup() {
   Serial.begin(115200);
-  Serial.println("\nthe greenhouse — CYD module v2");
+  Serial.println("\nthe greenhouse — CYD module");
 
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);

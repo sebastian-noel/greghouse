@@ -1,5 +1,5 @@
 // v1 plant card: sprite + species + personality, moisture bar (mood-colored),
-// play general/thirsty (full volume), re-record voices. v2: the hardware
+// play general/thirsty (full volume), re-record voices. the hardware
 // plant reads the live probe (badge LIVE SENSOR) and shows a "probe offline"
 // line when stale (value frozen — no fake soil); everyone else is SIMULATED.
 import { useEffect, useMemo, useState } from 'react';

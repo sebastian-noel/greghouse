@@ -1,7 +1,6 @@
-// the greenhouse v2 — Node server (social layer)
+// the greenhouse — Node server (social layer)
 //
-// Protocol and behavior ported from v1 (Projects/Testt/greenhouse/server).
-// v2 deltas: the sensor POST is gone (410) — the device posts soil straight
+// The sensor POST is gone (410) — the device posts soil straight
 // to the cloud (API Gateway → Lambda → DynamoDB); this server proxies the
 // cloud's GET /readings same-origin at /telemetry/latest (the API Gateway
 // endpoint has no CORS headers, and one shared upstream fetch serves every
@@ -173,7 +172,7 @@ app.get('/api/garden/:id', (req, res) => {
 });
 
 // lightweight, no voice/audio payload — meant for small/embedded clients (e.g. a CYD display).
-// v2: NO soil/mood for hardware plants — the probe + shared thresholds own those.
+// NO soil/mood for hardware plants — the probe + shared thresholds own those.
 app.get('/api/garden/:id/plant/:pid', (req, res) => {
   const g = db.gardens[req.params.id];
   if (!g) return res.status(404).json({ error: 'garden not found' });
