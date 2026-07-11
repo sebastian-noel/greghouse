@@ -26,6 +26,10 @@ header{display:flex; align-items:center; gap:8px; padding:10px 12px; background:
   border-bottom:3px solid var(--ink); flex-wrap:wrap; z-index:30; position:relative;}
 header h1{font-family:var(--fp); font-size:14px; color:var(--ink); user-select:none; -webkit-user-select:none; cursor:pointer;}
 header .spacer{flex:1;}
+#weather-badge{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  text-align:center; white-space:nowrap; pointer-events:none;}
+#weather-badge .mini{display:block; font-size:14px; color:var(--deep);}
+@media (max-width:700px){ #weather-badge{display:none;} }
 #main{flex:1; position:relative; min-height:0;}
 
 /* ---------- world / camera ---------- */

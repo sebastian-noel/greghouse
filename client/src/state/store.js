@@ -37,6 +37,7 @@ export const useStore = create((set, get) => ({
   visitorName: '',
   skin: null,             // avatar palette {H,B,T,F}
   garden: { id: null, seed: null, dims: null, ownerName: null },
+  weather: { loaded: false, tempF: null, humidity: null, error: null },
 
   // ---- garden state (v1 `state`)
   plants: [],

@@ -3,6 +3,18 @@
 import { useRef } from 'react';
 import { useStore } from '../state/store.js';
 import { audio } from '../engine/audio.js';
+import { climateImpact } from '../engine/climate.js';
+
+function WeatherBadge() {
+  const weather = useStore(s => s.weather);
+  if (!weather.loaded || weather.error || weather.tempF == null) return null;
+  return (
+    <div id="weather-badge">
+      <span>Current Temperature: {weather.tempF.toFixed(1)}&deg;F &middot; Humidity: {Math.round(weather.humidity)}%</span>
+      <span className="mini">{climateImpact(weather.tempF, weather.humidity)}</span>
+    </div>
+  );
+}
 
 export default function Header() {
   const isVisitor = useStore(s => s.isVisitor);
@@ -43,6 +55,7 @@ export default function Header() {
         onDoubleClick={() => { if (!isVisitor) toggleDebug(); }}>
         the greenhouse
       </h1>
+      <WeatherBadge />
       <span className="spacer" />
       <button className="small" onClick={toggleMute}>sound: {muted ? 'off' : 'on'}</button>
       {!isVisitor && <button className="small" onClick={share}>share</button>}

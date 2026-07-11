@@ -3,6 +3,7 @@ import { useAuthBoot } from './hooks/useAuth.js';
 import { useGardenSync } from './hooks/useGardenSync.js';
 import { useTelemetry } from './hooks/useTelemetry.js';
 import { useSimTick } from './hooks/useSimTick.js';
+import { useWeather } from './hooks/useWeather.js';
 import EnterScreen from './components/EnterScreen/EnterScreen.jsx';
 import Header from './components/Header.jsx';
 import WorldViewport from './components/World/WorldViewport.jsx';
@@ -23,6 +24,7 @@ function GardenShell() {
   useGardenSync();
   useTelemetry();
   useSimTick();
+  useWeather();
   const debugOpen = useStore(s => s.debugOpen);
 
   return (
