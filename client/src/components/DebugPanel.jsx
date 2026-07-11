@@ -1,5 +1,6 @@
 // v1 debug: right-side cream panel — per-plant moisture slider + water +20,
-// sim speed 1/4/10/25×, reset demo. Hardware plants: read-only, the probe decides.
+// sim speed 1/4/10/25×, reset (re-rolls the map seed + replants). Hardware
+// plants: read-only, the probe decides.
 import { useStore, isHardwarePlant, seedPlants } from '../state/store.js';
 import { SPECIES, moodFor } from '../engine/species.js';
 import { onMoodChanged } from '../state/actions.js';
@@ -19,13 +20,14 @@ export default function DebugPanel() {
     if (mood !== p.mood) onMoodChanged({ ...p, moisture, mood }, mood);
   }
 
-  function resetDemo() {
+  function reset() {
     localStorage.removeItem(LS_STATE);
     const store = useStore.getState();
-    store.set({ messages: [], peopleChat: [] });
+    const seed = (Math.random() * 0x7fffffff) | 0; // re-roll the map layout (dims kept)
+    store.set({ messages: [], peopleChat: [], garden: { ...store.garden, seed } });
     store.setPlants(seedPlants(), 'full');
-    scheduleSync('full');
-    toast('demo reset');
+    scheduleSync('full'); // pushes the new seed to the server + any visitors
+    toast('reset');
   }
 
   return (
@@ -60,7 +62,7 @@ export default function DebugPanel() {
         ))}
       </div>
       <div className="row">
-        <button className="small" onClick={resetDemo}>reset demo</button>
+        <button className="small" onClick={reset}>reset</button>
         <button className="small" onClick={() => useStore.setState({ debugOpen: false })}>close</button>
       </div>
     </div>

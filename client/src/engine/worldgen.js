@@ -27,9 +27,9 @@ export function genWorld(opts) {
     world.W = opts.dims.W; world.H = opts.dims.H;
   } else {
     const viewW = opts.viewW || 1200, viewH = opts.viewH || 800;
-    world.W = Math.max(12, Math.floor((viewW * 2) / TILE));
-    world.H = Math.max(10, Math.floor((viewH * 2) / TILE));
-    while (world.W * world.H * TILE * TILE > viewW * viewH * 4 && (world.W > 12 || world.H > 10)) {
+    world.W = Math.max(12, Math.floor((viewW * 1.75) / TILE));
+    world.H = Math.max(10, Math.floor((viewH * 1.75) / TILE));
+    while (world.W * world.H * TILE * TILE > viewW * viewH * 2.9 && (world.W > 12 || world.H > 10)) {
       if (world.W * TILE / viewW > world.H * TILE / viewH && world.W > 12) world.W--; else if (world.H > 10) world.H--; else world.W--;
     }
   }
@@ -39,13 +39,26 @@ export function genWorld(opts) {
   const tIdx = (x, y) => y * W + x;
   const tGet = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? -1 : world.tiles[tIdx(x, y)];
 
-  /* pond — bottom right, sized to the map, kept off the path band */
-  const prx = Math.min(rndi(3, 5), Math.max(2, Math.floor(W / 6)));
-  const pry = Math.min(rndi(2, 3), Math.max(2, Math.floor(H / 7)));
-  const pcx = W - prx - rndi(2, 3), pcy = H - pry - rndi(1, 2);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const dx = (x - pcx) / prx, dy = (y - pcy) / pry;
-    if (dx * dx + dy * dy <= 1 && x > 1 && y > 1 && x < W - 1 && y < H - 1) world.tiles[tIdx(x, y)] = T_WATER;
+  /* ponds — 3-4 small ones toward the corners, out of the center so the plant
+     cluster + path stay open. 3 shape variations so they don't all look alike:
+     0 round · 1 wide oval · 2 blob (two overlapping lobes). */
+  const stampWater = (cx, cy, rx, ry) => {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = (x - cx) / rx, dy = (y - cy) / ry;
+      if (dx * dx + dy * dy <= 1 && x > 1 && y > 1 && x < W - 1 && y < H - 1) world.tiles[tIdx(x, y)] = T_WATER;
+    }
+  };
+  const carvePond = (pcx, pcy, variant) => {
+    if (variant === 0) stampWater(pcx, pcy, 2, 2);
+    else if (variant === 1) stampWater(pcx, pcy, 3, 2);
+    else { stampWater(pcx, pcy, 2, 2); stampWater(pcx + rndi(1, 2), pcy + 1, 2, 1); }
+  };
+  const pondZones = [[0.82, 0.80], [0.16, 0.22], [0.82, 0.22], [0.16, 0.80]];
+  const smallMap = W < 20 || H < 14;
+  const pondCount = smallMap ? 2 : 3 + rndi(0, 1); // don't crowd tiny maps
+  for (let i = 0; i < pondCount; i++) {
+    const [fx, fy] = pondZones[i];
+    carvePond(Math.round(W * fx) + rndi(-1, 1), Math.round(H * fy) + rndi(-1, 1), smallMap ? 0 : rndi(0, 2));
   }
 
   /* winding path, 2 tiles thick, left edge to right edge */
@@ -58,9 +71,11 @@ export function genWorld(opts) {
     r = Math.max(3, Math.min(H - 7, r));
   }
 
-  /* plant spots: 3 columns x 2 rows regions, snapped to clear grass */
+  /* plant spots: 3 columns x 2 rows regions, snapped to clear grass. Pulled
+     toward the center so the plants cluster a little tighter (minDist unchanged
+     so the 2x2 pads still never overlap). */
   const regs = [];
-  for (const fy of [0.32, 0.62]) for (const fx of [0.28, 0.5, 0.72])
+  for (const fy of [0.36, 0.60]) for (const fx of [0.34, 0.5, 0.66])
     regs.push([Math.round(W * fx), Math.round(H * fy)]);
   let minDist = 3;
   const okSpot = (x, y) => {
@@ -103,6 +118,17 @@ export function genWorld(opts) {
       for (let x = 1; x <= W - 3 && world.spots.length < 6; x++)
         if (okLoose(x, y)) placeSpot(x, y);
   }
+  // last resort (dense/tiny maps): any 2x2 grass, no spacing rule — guarantees
+  // 6 spots so no plant is left without a place to render. Placed pads become
+  // T_PAD, so this still can't overlap an existing pad.
+  if (world.spots.length < 6) {
+    for (let y = 1; y <= H - 3 && world.spots.length < 6; y++)
+      for (let x = 1; x <= W - 3 && world.spots.length < 6; x++) {
+        let grass = true;
+        for (let dy = 0; dy < 2 && grass; dy++) for (let dx = 0; dx < 2; dx++) if (tGet(x + dx, y + dy) !== T_GRASS) grass = false;
+        if (grass) placeSpot(x, y);
+      }
+  }
 
   /* trees: border band + a few interior */
   const treeOk = (x, y) => {
@@ -119,11 +145,56 @@ export function genWorld(opts) {
     if (worldRng() < 0.6 && treeOk(0, y)) world.trees.push({ tx: 0, ty: y });
     if (worldRng() < 0.6 && treeOk(W - 1, y)) world.trees.push({ tx: W - 1, ty: y });
   }
-  let tries = 10;
+  let tries = 26;
   while (tries-- > 0) {
     const x = rndi(3, W - 4), y = rndi(3, H - 4);
-    if (world.trees.filter(t => t.ty > 1 && t.ty < H - 2 && t.tx > 1 && t.tx < W - 2).length >= 6) break;
+    if (world.trees.filter(t => t.ty > 1 && t.ty < H - 2 && t.tx > 1 && t.tx < W - 2).length >= 12) break;
     if (treeOk(x, y)) world.trees.push({ tx: x, ty: y });
+  }
+
+  /* groves: tight clusters for density. Only trees block movement (bushes are
+     walk-through decor), so clusters read dense without becoming a maze. Kept
+     clear of plant pads. 3 layout variations so they don't all look alike. */
+  const groveBushOk = (x, y) =>
+    tGet(x, y) === T_GRASS &&
+    !world.trees.some(t => t.tx === x && (t.ty === y || t.ty + 1 === y)) &&
+    !world.decor.some(d => Math.abs(d.tx - x) < 1 && Math.abs(d.ty - y) < 1);
+  const addTree = (x, y) => (treeOk(x, y) ? (world.trees.push({ tx: x, ty: y }), 1) : 0);
+  const addBush = (x, y) => (groveBushOk(x, y) ? (world.decor.push({ tx: x, ty: y, kind: 'bush' }), 1) : 0);
+  let groves = 0, groveGuard = 90;
+  const groveTarget = 6 + rndi(0, 2); // 6-8
+  while (groves < groveTarget && groveGuard-- > 0) {
+    const cx = rndi(3, W - 4), cy = rndi(3, H - 4);
+    if (world.spots.some(s => Math.abs(s.tx - cx) <= 2 && Math.abs(s.ty - cy) <= 2)) continue;
+    let n = 0;
+    switch (rndi(0, 2)) {
+      case 0: // one tree + an undergrowth ring
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1]]) if (addTree(cx + dx, cy + dy)) { n++; break; }
+        for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) n += addBush(cx + dx, cy + dy);
+        break;
+      case 1: // twin trees with bushes between
+        n += addTree(cx, cy) + addTree(cx + 2, cy + 1) + addBush(cx + 1, cy) + addBush(cx + 1, cy + 1);
+        break;
+      default: // loose triangle of three trees + a bush
+        n += addTree(cx, cy) + addTree(cx + 2, cy) + addTree(cx + 1, cy + 2) + addBush(cx + 1, cy + 1);
+    }
+    if (n >= 2) groves++;
+  }
+
+  /* bush groups: clusters of bushes only — pure decoration, walk-through, so
+     they add density anywhere without affecting navigation. 3 variations:
+     0 plus-clump · 1 short row · 2 scattered 3x3. */
+  let bushGroups = 0, bgGuard = 120;
+  const bgTarget = 5 + rndi(0, 2); // 5-7
+  while (bushGroups < bgTarget && bgGuard-- > 0) {
+    const cx = rndi(2, W - 4), cy = rndi(2, H - 4);
+    let n = 0;
+    switch (rndi(0, 2)) {
+      case 0: for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) n += addBush(cx + dx, cy + dy); break;
+      case 1: for (const dx of [0, 1, 2, 3]) n += addBush(cx + dx, cy); break;
+      default: for (const [dx, dy] of [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]]) n += addBush(cx + dx, cy + dy);
+    }
+    if (n >= 2) bushGroups++;
   }
 
   /* fences: two short runs below the top tree line, gap at the path */
@@ -145,8 +216,8 @@ export function genWorld(opts) {
   while (placedB < 5 && guard-- > 0) { const x = rndi(2, W - 3), y = rndi(2, H - 3); if (decorOk(x, y)) { world.decor.push({ tx: x, ty: y, kind: 'bush' }); placedB++; } }
   let placedS = 0; guard = 60;
   while (placedS < 5 && guard-- > 0) { const x = rndi(2, W - 3), y = rndi(2, H - 3); if (decorOk(x, y)) { world.decor.push({ tx: x, ty: y, kind: 'stone' }); placedS++; } }
-  let placedM = 0; guard = 80;
-  while (placedM < 3 && guard-- > 0) {
+  let placedM = 0; guard = 120;
+  while (placedM < 5 && guard-- > 0) {
     const x = rndi(2, W - 3), y = rndi(2, H - 3);
     const nearWater = [tGet(x + 1, y), tGet(x - 1, y), tGet(x, y + 1), tGet(x, y - 1), tGet(x + 2, y), tGet(x - 2, y)].includes(T_WATER);
     if (tGet(x, y) === T_GRASS && nearWater && !world.decor.some(d => d.tx === x && d.ty === y)) { world.decor.push({ tx: x, ty: y, kind: 'mushroom' }); placedM++; }

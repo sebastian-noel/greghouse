@@ -89,7 +89,13 @@ function applyGardenFull(g) {
       Object.assign(p, np);
     } else plants.push({ ...np });
   }
-  useStore.setState({ plants: [...plants] });
+  const next = { plants: [...plants] };
+  // the owner can re-roll the map (new seed) via debug reset — keep the
+  // visitor's world in sync so it regenerates too
+  if (typeof g.seed === 'number' && g.seed !== store.garden.seed) {
+    next.garden = { ...store.garden, seed: g.seed, dims: g.dims || store.garden.dims };
+  }
+  useStore.setState(next);
   applyMessages(g.messages);
 }
 
