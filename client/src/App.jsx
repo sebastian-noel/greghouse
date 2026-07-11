@@ -11,6 +11,7 @@ import ChatSidebar from './components/Chat/ChatSidebar.jsx';
 import ModalHost from './components/Modals/ModalHost.jsx';
 import DebugPanel from './components/DebugPanel.jsx';
 import Toasts from './components/Toasts.jsx';
+import Announcement from './components/Announcement.jsx';
 
 export default function App() {
   useAuthBoot();
@@ -30,6 +31,7 @@ function GardenShell() {
   return (
     <div id="app">
       <Header />
+      <Announcement />
       <div id="main">
         <WorldViewport />
         <ChatSidebar />

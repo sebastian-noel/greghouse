@@ -364,6 +364,16 @@ wss.on('connection', (ws, req) => {
 
     } else if (m.t === 'need-full') {
       ws.send(JSON.stringify({ t: 'garden-full', g: publicGarden(garden) }));
+
+    } else if (m.t === 'warn') {
+      // a visitor pings the owner to water a thirsty plant. Deliberately
+      // un-throttled (spamming it is part of the fun) and delivered ONLY to the
+      // owner's tab(s) — never echoed to the other visitors.
+      const plant = (garden.plants || []).find(p => p.id === String(m.plantId || ''));
+      const payload = JSON.stringify({ t: 'warn', from: meta.name,
+        plantId: plant ? plant.id : '', plantName: plant ? plant.name : 'a plant' });
+      for (const c of set)
+        if (c.readyState === 1 && c.meta.joined && c.meta.isOwner) c.send(payload);
     }
   });
 

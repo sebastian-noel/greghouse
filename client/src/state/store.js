@@ -27,6 +27,7 @@ export function seedPlants() {
 }
 
 let toastSeq = 0;
+let annSeq = 0, annTimer = null;
 
 export const useStore = create((set, get) => ({
   // ---- boot / identity
@@ -54,6 +55,7 @@ export const useStore = create((set, get) => ({
   peerBubbles: {},        // peerId ('self' for me) -> {text, ts}
   telemetry: {},          // plantId -> {soil, ts, ageMs, stale}
   nearWaterId: null,      // simulated plant the gardener is close enough to water
+  nearWarnId: null,       // thirsty plant a VISITOR is close enough to warn about
   waterFx: {},            // plantId -> ts ("+N" splash floating over the plant)
   selfWater: null,        // { dir } while the gardener holds out the pail, else null
 
@@ -62,10 +64,22 @@ export const useStore = create((set, get) => ({
   modal: null,            // {type:'card',id} | {type:'wizard'} | {type:'share',url}
   debugOpen: false,
   toasts: [],
+  announcement: null,     // owner-only warn banner: { id, text } | null
 
   isOwner() { const s = get(); return !s.isVisitor && !!s.session.user; },
 
   set, // escape hatch for hooks (v1 mutated freely; we funnel through set)
+
+  // owner-only warn banner. Spamming replaces the previous one and restarts
+  // the 3s life (the component keys off `id` to re-mount + fade); cleared ~3.4s
+  // later so the fade-out completes before it unmounts.
+  showAnnouncement(text) {
+    const id = ++annSeq;
+    set({ announcement: { id, text } });
+    clearTimeout(annTimer);
+    annTimer = setTimeout(() =>
+      set(s => (s.announcement && s.announcement.id === id ? { announcement: null } : {})), 3400);
+  },
 
   toast(text, ms) {
     const id = ++toastSeq;

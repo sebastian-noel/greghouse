@@ -8,6 +8,8 @@ import { useEffect } from 'react';
 import { api } from '../api/http.js';
 import { useStore, cleanPlant, isHardwarePlant } from '../state/store.js';
 import { char, net, peerPos } from '../state/runtime.js';
+import { notifySound } from '../engine/audio.js';
+import { pickWarnMessage } from '../engine/announcements.js';
 
 export function sendNet(o) { try { net.socket.send(JSON.stringify(o)); } catch (e) { /* not connected */ } }
 
@@ -128,6 +130,13 @@ function handleNet(m) {
     }
     case 'garden-full': if (store.isVisitor) applyGardenFull(m.g); break;
     case 'garden-lite': if (store.isVisitor) applyGardenLite(m.g); break;
+    case 'warn': {
+      // the server only delivers this to the owner; show the banner + chime
+      if (store.isVisitor) break;
+      store.showAnnouncement(pickWarnMessage(m.from || 'someone', m.plantName || 'a plant'));
+      notifySound();
+      break;
+    }
   }
 }
 

@@ -4,7 +4,7 @@
 export const char = {
   x: 0, y: 0, dir: 1, speed: 170, // px/sec (v1)
   keys: {}, joy: { x: 0, y: 0, active: false },
-  near: null, waterId: null, watering: false, lastRAF: 0,
+  near: null, waterId: null, warnId: null, watering: false, lastRAF: 0,
 };
 
 export const cam = { panX: 0, panY: 0, viewW: 0, viewH: 0 };

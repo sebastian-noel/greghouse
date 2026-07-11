@@ -75,6 +75,21 @@ export function waterSound() {
   }
 }
 
+// a short rising two-tone "attention" chime for the owner's warn banner
+export function notifySound() {
+  if (!audio.unlocked || audio.muted || !audio.actx) return;
+  const actx = audio.actx, now = actx.currentTime;
+  for (const [f, t] of [[880, 0], [1174.66, 0.12]]) { // A5 → D6
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, now + t);
+    g.gain.exponentialRampToValueAtTime(0.16, now + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.22);
+    o.connect(g); g.connect(actx.destination);
+    o.start(now + t); o.stop(now + t + 0.24);
+  }
+}
+
 export function stopActivePlayback() {
   clearTimeout(audio.loopTimer); audio.loopTimer = null;
   if (!audio.activePlayback) return;
