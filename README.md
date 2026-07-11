@@ -24,6 +24,24 @@ npm run build       # production: client/dist, served by the Node server
 npm run tunnel      # expose :3000 publicly via cloudflared (share links + CYD)
 ```
 
+## Public hosting
+
+This app is hosted like the prototype in `Documents/Projects/testt`: a
+long-running local Node process serves the app, API, WebSocket, and garden
+database, while Cloudflare Tunnel exposes port 3000 publicly.
+
+```bash
+npm run build
+npm run server
+npm run tunnel
+```
+
+Use the `https://...trycloudflare.com` address printed by `npm run tunnel`.
+Quick-tunnel addresses change whenever `cloudflared` restarts, so verify the
+active address before sharing it. Do not deploy this app to Render or a
+serverless host; its WebSockets, local JSON database, and ffmpeg process need
+the long-running Node server.
+
 - Copy `.env.example` to `.env` for server config (`PORT`, `GOOGLE_CLIENT_ID`,
   `TELEMETRY_UPSTREAM`) — `npm run server` loads it automatically. `.env` is
   gitignored.
@@ -54,5 +72,4 @@ Connected the readings from the database in order to show the moisture levels in
 different personality types for each plant, gamifying the experience of watering plants by having fun interactions with an
 automated randomized chats in the side and having sound effects be played by proximity alongside having a vibe compared to some pixel
 art games. 
-
 
