@@ -452,14 +452,18 @@ void drawCloudFail() { // small ☁✕ glyph, top-right
   tft.drawLine(296, 9, 306, 19, TFT_RED);
   tft.drawLine(306, 9, 296, 19, TFT_RED);
 }
-
+// yo 
 void drawBar(int x, int y, int w, int h, int pct, uint16_t color) {
-  tft.drawRect(x, y, w, h, 0x1129);                     // ink border
-  int fill = (w - 4) * constrain(pct, 0, 100) / 100;
-  tft.fillRect(x + 2, y + 2, fill, h - 4, color);
-  tft.fillRect(x + 2 + fill, y + 2, (w - 4) - fill, h - 4, 0xFFDD); // cream empty
+  // 2px border — outer then inner rect
+  tft.drawRect(x,     y,     w,     h,     0x1129);
+  tft.drawRect(x + 1, y + 1, w - 2, h - 2, 0x1129);
+  
+  // fill inside the 2px border
+  int fill = (w - 6) * constrain(pct, 0, 100) / 100;
+  tft.fillRect(x + 3, y + 3, fill,           h - 6, color);
+  tft.fillRect(x + 3 + fill, y + 3, (w - 6) - fill, h - 6, 0xFFDD);
 }
-// yo
+
 // yo
 void drawStatsView() {
   const int PX = 24, PY = 36, PW = 272, PH = 168;
@@ -588,7 +592,7 @@ void connectWifi() {
     delay(8000);
   }
 }
-// yo
+
 // ------------------------------------------------------------- setup/loop
 void setup() {
   Serial.begin(115200);

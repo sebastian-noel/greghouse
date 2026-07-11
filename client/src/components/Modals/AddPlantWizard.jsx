@@ -117,7 +117,7 @@ export default function AddPlantWizard() {
           <p>step 1 — how does this plant live?</p>
           <button className="wizcard primary" onClick={() => pickKind('hardware')}>
             <b>hardware plant</b>
-            lives on the greenhouse module — ESP32 display + a real soil moisture probe posting every 2 seconds
+            for if you have a plant diagnostic device
           </button>
           <div className="simbox">
             <span className="mini">no hardware for this one?</span>
