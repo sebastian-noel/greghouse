@@ -1,13 +1,14 @@
 // v1 plantwrap: bubble above, bobbing sprite, name label below. Click chirps
-// + opens the card (suppressed after a drag). v2: when the gardener walks up
-// to a SIMULATED plant a "water" button appears; watering plays a pail + "+N"
-// animation for 1.5s (see waterPlant / showWaterFx).
+// + opens the card (suppressed after a drag). v2: when the OWNER walks up to a
+// SIMULATED plant a "water" button appears (pail + "+N" FX); when a VISITOR
+// walks up to a THIRSTY plant a "tell {owner} to water" button appears instead.
 import { useEffect, useMemo, useState } from 'react';
 import { useStore, isHardwarePlant } from '../../state/store.js';
 import { spriteSVG } from '../../engine/sprites.js';
 import { chirp } from '../../engine/audio.js';
 import { dragMovedRef } from '../../state/runtime.js';
 import { waterPlant } from '../../state/actions.js';
+import { sendNet } from '../../hooks/useGardenSync.js';
 import { WATER_AMOUNT } from '../../config.js';
 
 function Bubble({ bubble, ms }) {
@@ -37,6 +38,8 @@ export default function PlantSprite({ plant, spot, index }) {
   const bubble = useStore(s => s.bubbles[plant.id]);
   const telem = useStore(s => s.telemetry[plant.id]);
   const canWater = useStore(s => s.nearWaterId === plant.id);
+  const canWarn = useStore(s => s.nearWarnId === plant.id);
+  const ownerName = useStore(s => s.garden.ownerName);
   const watering = useStore(s => !!s.waterFx[plant.id]);
   const svg = useMemo(() => spriteSVG(plant, 5), [plant.speciesId, plant.mood, plant.potColor, plant.name]);
   if (!spot) return null;
@@ -63,6 +66,13 @@ export default function PlantSprite({ plant, spot, index }) {
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); waterPlant(plant.id); }}>
           💧 water
+        </button>
+      )}
+      {canWarn && (
+        <button className="warn-btn" aria-label={`tell ${ownerName || 'the gardener'} to water ${plant.name}`}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); sendNet({ t: 'warn', plantId: plant.id }); }}>
+          tell {ownerName || 'the gardener'} to water {plant.name}
         </button>
       )}
     </div>

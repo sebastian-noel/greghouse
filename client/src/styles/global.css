@@ -58,12 +58,14 @@ header .spacer{flex:1;}
   .wave{animation:wave .5s steps(3) 1 !important;}
   @keyframes wave{0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-6px) scale(1.08);}}
 }
-/* ---------- walk-up watering ---------- */
-.water-btn{position:absolute; left:50%; top:calc(100% + 3px); transform:translateX(-50%);
-  font-family:var(--fp); font-size:8px; white-space:nowrap; background:var(--sky); color:var(--ink);
+/* ---------- walk-up plant buttons (owner: water · visitor: warn) ---------- */
+.water-btn, .warn-btn{position:absolute; left:50%; top:calc(100% + 3px); transform:translateX(-50%);
+  font-family:var(--fp); font-size:8px; white-space:nowrap; color:var(--ink);
   border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink); padding:6px 8px; cursor:pointer;
   z-index:7; min-height:0;}
-.water-btn:active{transform:translateX(-50%) translateY(3px); box-shadow:none;}
+.water-btn{background:var(--sky);}
+.warn-btn{background:var(--sun);}
+.water-btn:active, .warn-btn:active{transform:translateX(-50%) translateY(3px); box-shadow:none;}
 /* "+N" splash over the watered plant */
 .water-fx{position:absolute; left:50%; top:-6px; width:80px; height:40px; transform:translateX(-50%);
   pointer-events:none; z-index:8;}
@@ -169,6 +171,18 @@ header .spacer{flex:1;}
 #debug .dplant .nm{font-family:var(--fp); font-size:9px; margin-bottom:6px;}
 .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; background:var(--ink); color:var(--cream);
   font-size:19px; padding:10px 16px; border:3px solid var(--cream); z-index:120;}
+/* owner warn banner — fixed just below the top bar */
+.announce{position:fixed; top:64px; left:50%; transform:translateX(-50%);
+  max-width:min(92vw,560px); background:var(--ink); color:var(--cream);
+  border:3px solid var(--sun); box-shadow:4px 4px 0 rgba(29,43,83,.5);
+  font-family:var(--fb); font-size:19px; line-height:1.15; padding:10px 16px;
+  text-align:left; z-index:110;
+  pointer-events:none; opacity:1; transition:opacity .4s ease, transform .4s ease;}
+.announce.leaving{opacity:0; transform:translate(-50%,-8px);}
+@media (prefers-reduced-motion: no-preference){
+  .announce:not(.leaving){animation:announce-in .28s ease-out;}
+  @keyframes announce-in{from{opacity:0; transform:translate(-50%,-14px);} to{opacity:1; transform:translate(-50%,0);}}
+}
 .linkish{background:none; border:none; box-shadow:none; min-height:0; padding:4px; font-family:var(--fb);
   font-size:18px; text-decoration:underline; color:var(--deep);}
 .linkish:active{transform:none;}

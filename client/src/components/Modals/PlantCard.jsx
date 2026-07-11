@@ -7,7 +7,7 @@ import { useStore, isHardwarePlant } from '../../state/store.js';
 import { SPECIES } from '../../engine/species.js';
 import { spriteSVG } from '../../engine/sprites.js';
 import { playClipAtFullVolume } from '../../engine/audio.js';
-import { scheduleSync } from '../../hooks/useGardenSync.js';
+import { scheduleSync, sendNet } from '../../hooks/useGardenSync.js';
 import Recorder from '../Recorder.jsx';
 
 function OfflineLine({ ts }) {
@@ -28,6 +28,7 @@ export default function PlantCard({ plantId }) {
   const plant = useStore(s => s.plants.find(p => p.id === plantId));
   const telem = useStore(s => s.telemetry[plantId]);
   const isVisitor = useStore(s => s.isVisitor);
+  const ownerName = useStore(s => s.garden.ownerName);
   const closeModal = useStore(s => s.closeModal);
   const updatePlant = useStore(s => s.updatePlant);
   const toast = useStore(s => s.toast);
@@ -62,6 +63,13 @@ export default function PlantCard({ plantId }) {
       <p className="mini">{hw ? 'soil moisture' : 'moisture'}: <span>{moist}</span> / 100 — mood: <span>{plant.mood}</span></p>
       <div className="bar"><div className="fill" style={{ width: moist + '%', background: fillColor }} /></div>
       {offline && <OfflineLine ts={telem?.ts} />}
+      {/* visitors can't water — but a thirsty plant lets them nudge the host */}
+      {isVisitor && plant.mood === 'thirsty' && (
+        <button className="small primary" style={{ marginTop: 12, width: '100%' }}
+          onClick={() => sendNet({ t: 'warn', plantId: plant.id })}>
+          ⚠ warn {ownerName || 'the gardener'} — {plant.name} needs water
+        </button>
+      )}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'general')}>play general</button>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'thirsty')}>play thirsty</button>

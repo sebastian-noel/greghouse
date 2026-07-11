@@ -156,18 +156,23 @@ export default function WorldViewport() {
     function proximityCheck() {
       const s = useStore.getState();
       let best = null, bestD = 1e9;         // nearest plant (drives audio)
-      let water = null, waterD = 1e9;       // nearest SIMULATED plant (drives watering)
+      let water = null, waterD = 1e9;       // nearest SIMULATED plant (owner → water)
+      let warn = null, warnD = 1e9;         // nearest THIRSTY plant (visitor → warn)
       s.plants.slice(0, 6).forEach((p, i) => {
         const spot = world.spots[i];
         if (!spot) return;
         const d = Math.hypot(spot.px - char.x, (spot.py - TILE) - char.y);
         if (d < bestD) { bestD = d; best = p; }
         if (!isHardwarePlant(p) && d < waterD) { waterD = d; water = p; }
+        if (p.mood === 'thirsty' && d < warnD) { warnD = d; warn = p; }
       });
 
-      // publish the waterable plant only when it changes (never per-frame churn)
+      // publish near-plant ids only when they change (never per-frame churn).
+      // owner gets the water target; visitor gets the warn target (any thirsty plant).
       const wid = (!s.isVisitor && water && waterD < WATER_RANGE) ? water.id : null;
       if (wid !== char.waterId) { char.waterId = wid; useStore.setState({ nearWaterId: wid }); }
+      const nid = (s.isVisitor && warn && warnD < WATER_RANGE) ? warn.id : null;
+      if (nid !== char.warnId) { char.warnId = nid; useStore.setState({ nearWarnId: nid }); }
 
       if (best && bestD < PROX_RANGE) {
         // vol: 0 at trigger edge, 1 right on top — driven live every frame
