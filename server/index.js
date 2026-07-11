@@ -1,14 +1,12 @@
 // the greenhouse v2 — Node server (social layer)
 //
 // Protocol and behavior ported from v1 (Projects/Testt/greenhouse/server).
-// v2 deltas: the sensor POST is gone (410) — soil telemetry lives in the
-// cloud stack; the sim loop only invents LIGHT for hardware plants, never
-// soil ("no fake soil, ever"); the client is a built React app (client/dist).
-//
-// DEV ONLY: this server also mounts a mock of the cloud telemetry contract
-// (POST /telemetry, GET /telemetry/latest) generating fake wandering soil
-// readings so hardware plants are testable before the real stack exists.
-// Point TELEMETRY_BASE (client config + firmware) at the real URL to switch.
+// v2 deltas: the sensor POST is gone (410) — the device posts soil straight
+// to the cloud (API Gateway → Lambda → DynamoDB); this server proxies the
+// cloud's GET /readings same-origin at /telemetry/latest (the API Gateway
+// endpoint has no CORS headers, and one shared upstream fetch serves every
+// viewer); no simulated sensors of any kind — the only sensor is the soil
+// probe, and only the hardware plant has it.
 
 import express from 'express';
 import http from 'http';
@@ -24,7 +22,9 @@ const DIST = path.join(__dirname, '..', 'client', 'dist');
 const DATA_FILE = path.join(__dirname, 'data.json');
 const PORT = process.env.PORT || 3000;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const TELEMETRY_KEY = process.env.TELEMETRY_KEY || '';
+// the friend's cloud stack — the CYD POSTs here, we GET the latest readings
+const TELEMETRY_UPSTREAM = process.env.TELEMETRY_UPSTREAM
+  || 'https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings';
 
 /* ---------- persistence: one JSON file, debounced writes ---------- */
 let db = { users: {}, sessions: {}, gardens: {} };
@@ -184,7 +184,6 @@ app.get('/api/garden/:id/plant/:pid', (req, res) => {
   const voiceRev = p.voiceGeneralUrl
     ? crypto.createHash('md5').update(p.voiceGeneralUrl).digest('hex').slice(0, 8) : '';
   const out = { id: p.id, name: p.name, speciesId: p.speciesId, potColor: p.potColor,
-                light: Math.round(p.light ?? 50),
                 isHardware: isHardwarePlant(p),
                 hasVoice: !!p.voiceGeneralUrl, voiceRev };
   if (!isHardwarePlant(p)) {
@@ -224,54 +223,37 @@ app.get('/api/garden/:id/plant/:pid/voice.pcm', (req, res) => {
   ff.stdin.end(Buffer.from(m[1], 'base64'));
 });
 
-/* ---------- telemetry mock (DEV) ----------
-   Same contract as the friend's cloud stack:
-     POST /telemetry               {gardenId, plantId, soilMoisture}
-     GET  /telemetry/latest?g&p  → {soilMoisture, ts, ageMs} | 404
-   A real probe POSTing here owns the value for 10s; otherwise a fake random
-   walk keeps hardware plants alive during development.               */
-const telem = new Map(); // "g#p" -> { soil, ts, real, phase }
-
-app.post('/telemetry', (req, res) => {
-  if (TELEMETRY_KEY && req.headers['x-gh-key'] !== TELEMETRY_KEY)
-    return res.status(403).json({ error: 'bad key' });
-  const { gardenId, plantId, soilMoisture } = req.body || {};
-  const okId = s => typeof s === 'string' && s.length > 0 && s.length <= 32;
-  if (!okId(gardenId) || !okId(plantId) || !Number.isFinite(soilMoisture))
-    return res.status(400).json({ error: 'bad payload' });
-  const soil = Math.max(0, Math.min(100, Math.round(soilMoisture)));
-  const ts = Date.now();
-  const cur = telem.get(gardenId + '#' + plantId);
-  telem.set(gardenId + '#' + plantId, { soil, ts, real: true, phase: cur?.phase || 0 });
-  res.json({ ok: true, soilMoisture: soil, ts });
-});
-
-app.get('/telemetry/latest', (req, res) => {
-  const key = String(req.query.g || '') + '#' + String(req.query.p || '');
-  const e = telem.get(key);
-  if (!e) return res.status(404).json({ error: 'no readings' });
-  res.json({ soilMoisture: e.soil, ts: e.ts, ageMs: Date.now() - e.ts });
-});
-
-if (process.env.MOCK_TELEMETRY !== '0') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const g of Object.values(db.gardens)) {
-      for (const p of g.plants || []) {
-        if (!isHardwarePlant(p)) continue;
-        const key = g.id + '#' + p.id;
-        const e = telem.get(key) || { soil: 55, ts: 0, real: false, phase: Math.random() * Math.PI * 2 };
-        if (e.real && now - e.ts < 10000) continue; // a real probe owns this plant
-        e.phase += 0.02;
-        const drift = (45 + Math.sin(e.phase) * 30 - e.soil) * 0.05;
-        e.soil = Math.max(5, Math.min(95, Math.round(e.soil + drift + (Math.random() * 4 - 2))));
-        e.ts = now; e.real = false;
-        telem.set(key, e);
+/* ---------- telemetry proxy ----------
+   The browser can't hit API Gateway directly (no CORS headers on it), so we
+   re-serve the newest reading same-origin. One cached upstream fetch per
+   ~1.5s covers every open viewer.
+     GET /telemetry/latest → {soilMoisture, ts, ageMs} | 404
+   Upstream shape: {readings: [{plantId, soilMoisture, timestamp}, ...]},
+   newest first, timestamp = ms epoch (string). On upstream failure the
+   cache goes stale and ageMs keeps growing — the client's "probe offline"
+   badge falls out of that naturally. NO fake soil, ever.               */
+let telemCache = { at: 0, reading: null };
+app.get('/telemetry/latest', async (req, res) => {
+  const now = Date.now();
+  if (now - telemCache.at > 1500) {
+    telemCache.at = now; // even on failure — don't hammer a down upstream
+    try {
+      const r = await fetch(TELEMETRY_UPSTREAM, { signal: AbortSignal.timeout(4000) });
+      if (r.ok) {
+        const j = await r.json();
+        const latest = (j.readings || [])[0];
+        if (latest && Number.isFinite(Number(latest.soilMoisture))) telemCache.reading = latest;
       }
-    }
-  }, 2000);
-  console.log('telemetry mock: fake soil readings every 2s (MOCK_TELEMETRY=0 disables)');
-}
+    } catch (e) { /* keep the stale reading; ageMs tells the story */ }
+  }
+  const d = telemCache.reading;
+  if (!d) return res.status(404).json({ error: 'no readings' });
+  const ts = Number(d.timestamp);
+  res.json({
+    soilMoisture: Math.max(0, Math.min(100, Math.round(Number(d.soilMoisture)))),
+    ts, ageMs: Date.now() - ts,
+  });
+});
 
 /* ---------- static: the built React client ---------- */
 app.use(express.static(DIST));
@@ -393,31 +375,10 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-/* ---------- light sim for hardware plants ----------
-   v2: soil simulation (the v1 "phantom gardener") is DELETED — no fake soil
-   in the product path, ever. Soil comes from the telemetry endpoint. Light
-   has no sensor, so the server still simulates it and pushes garden-lite. */
-let simTicks = 0;
-setInterval(() => {
-  simTicks++;
-  for (const g of Object.values(db.gardens)) {
-    const hw = (g.plants || []).filter(isHardwarePlant);
-    if (!hw.length) continue;
-    for (const p of hw) {
-      // light tracks the real time of day (sunrise 6am, peak noon) plus passing clouds
-      const now = new Date();
-      const hour = now.getHours() + now.getMinutes() / 60;
-      const sun = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
-      const target = 8 + sun * 82;
-      if (typeof p.light !== 'number') p.light = target;
-      p.light += (target - p.light) * 0.2 + (Math.random() - 0.5) * 6;
-      p.light = Math.max(0, Math.min(100, p.light));
-    }
-    roomSend(g.id, { t: 'garden-lite', g: { plants: hw.map(p => ({
-      id: p.id, light: Math.round(p.light) })) } });
-  }
-  if (simTicks % 12 === 0) persist(); // sim readings aren't precious — write once a minute
-}, 5000);
+/* No server-side sensor simulation of any kind. Soil is the probe's (via the
+   cloud); simulated plants are simulated on the owner's client; there is no
+   light sensor, so there is no light. Periodic persist keeps chat safe. */
+setInterval(persist, 60000);
 
 server.listen(PORT, () => {
   console.log(`greenhouse server → http://localhost:${PORT}`);

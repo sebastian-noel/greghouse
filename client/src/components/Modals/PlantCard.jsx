@@ -1,7 +1,7 @@
 // v1 plant card: sprite + species + personality, moisture bar (mood-colored),
-// light bar for hardware plants, play general/thirsty (full volume),
-// re-record voices. v2: hardware soil reads the telemetry slice and shows a
-// "probe offline" line when stale (value frozen — no fake soil).
+// play general/thirsty (full volume), re-record voices. v2: the hardware
+// plant reads the live probe (badge LIVE SENSOR) and shows a "probe offline"
+// line when stale (value frozen — no fake soil); everyone else is SIMULATED.
 import { useEffect, useMemo, useState } from 'react';
 import { useStore, isHardwarePlant } from '../../state/store.js';
 import { SPECIES } from '../../engine/species.js';
@@ -49,7 +49,9 @@ export default function PlantCard({ plantId }) {
 
   return (
     <>
-      <h2>{plant.name} {hw && <span className="livebadge">LIVE SENSOR</span>}</h2>
+      <h2>{plant.name} {hw
+        ? <span className="livebadge">LIVE SENSOR</span>
+        : <span className="simbadge">SIMULATED</span>}</h2>
       <div className="row">
         <div dangerouslySetInnerHTML={{ __html: svg }} />
         <div style={{ flex: 1, minWidth: 150 }}>
@@ -60,13 +62,7 @@ export default function PlantCard({ plantId }) {
       <p className="mini">{hw ? 'soil moisture' : 'moisture'}: <span>{moist}</span> / 100 — mood: <span>{plant.mood}</span></p>
       <div className="bar"><div className="fill" style={{ width: moist + '%', background: fillColor }} /></div>
       {offline && <OfflineLine ts={telem?.ts} />}
-      {hw && (
-        <>
-          <p className="mini" style={{ marginTop: 8 }}>light: <span>{Math.round(plant.light ?? 50)}</span> / 100</p>
-          <div className="bar"><div className="fill" style={{ width: (plant.light ?? 50) + '%', background: 'var(--sun)' }} /></div>
-          <p className="mini" style={{ marginTop: 6 }}>soil: live probe · light: simulated</p>
-        </>
-      )}
+      {hw && <p className="mini" style={{ marginTop: 6 }}>live from the soil probe — updates every 2 seconds</p>}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'general')}>play general</button>
         <button className="small" onClick={() => playClipAtFullVolume(plant, 'thirsty')}>play thirsty</button>

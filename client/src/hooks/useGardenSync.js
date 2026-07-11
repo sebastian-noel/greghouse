@@ -66,26 +66,13 @@ function applyGardenLite(g) {
     const p = plants.find(x => x.id === np.id);
     if (!p) { missing = true; continue; }
     // hardware plants: soil/mood come exclusively from the telemetry poller
-    if (isHardwarePlant(p)) { if (np.light != null) p.light = np.light; continue; }
+    if (isHardwarePlant(p)) continue;
     if (np.moisture != null) p.moisture = np.moisture;
     if (np.mood) p.mood = np.mood;
   }
   useStore.setState({ plants });
   applyMessages(g.messages);
   if (missing || (g.plants && g.plants.length && g.plants.length !== plants.length)) sendNet({ t: 'need-full' });
-}
-
-// owner-side: the server's garden-lite only carries LIGHT for hardware plants now
-function applyHardwareLite(g) {
-  const store = useStore.getState();
-  let changed = false;
-  const plants = store.plants.map(p => {
-    const np = (g && g.plants || []).find(x => x.id === p.id);
-    if (!np || !isHardwarePlant(p) || np.light == null) return p;
-    changed = true;
-    return { ...p, light: np.light };
-  });
-  if (changed) useStore.setState({ plants });
 }
 
 function applyGardenFull(g) {
@@ -140,7 +127,7 @@ function handleNet(m) {
       break;
     }
     case 'garden-full': if (store.isVisitor) applyGardenFull(m.g); break;
-    case 'garden-lite': if (store.isVisitor) applyGardenLite(m.g); else applyHardwareLite(m.g); break;
+    case 'garden-lite': if (store.isVisitor) applyGardenLite(m.g); break;
   }
 }
 

@@ -17,10 +17,10 @@ export function bumpIds(plants) {
   (plants || []).forEach(p => { const n = parseInt(String(p.id).slice(1), 10); if (n >= nextId) nextId = n + 1; });
 }
 
-// v1 default garden: Greg is the real one
+// default garden: Greg mirrors the real probe, the others are simulated
 export function seedPlants() {
   return [
-    { id: uid(), name: 'Greg', speciesId: 'ficus', potColor: '#C2C3C7', isReal: true, moisture: 62, soilMoisture: 62, light: 50, mood: 'happy', createdAt: Date.now() },
+    { id: uid(), name: 'Greg', speciesId: 'ficus', potColor: '#C2C3C7', isReal: true, moisture: 62, soilMoisture: 62, mood: 'happy', createdAt: Date.now() },
     { id: uid(), name: 'Carl', speciesId: 'cactus', potColor: '#FFCCAA', isReal: false, moisture: 40, mood: 'happy', createdAt: Date.now() },
     { id: uid(), name: 'Bas', speciesId: 'basil', potColor: '#FF77A8', isReal: false, moisture: 70, mood: 'happy', createdAt: Date.now() }
   ];

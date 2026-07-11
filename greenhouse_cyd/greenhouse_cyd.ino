@@ -5,7 +5,7 @@
 // table the web client compiles (client/src/engine/species.js) — the display
 // face updates from the probe, not from a server echo.
 //
-// The Node server is only used for plant meta (name/potColor/light/voiceRev),
+// The Node server is only used for plant meta (name/potColor/voiceRev),
 // wifi provisioning, and the recorded voice (voice.pcm).
 //
 // Flash: arduino-cli compile --fqbn esp32:esp32:esp32 greenhouse_cyd
@@ -26,24 +26,21 @@
 #include "memo_audio.h"
 
 // ------------------------------------------------------------ config
-const char* WIFI_SSID = "YOUR_FALLBACK_SSID";      // compiled-in fallback (2.4 GHz)
-const char* WIFI_PASS = "YOUR_FALLBACK_PASSWORD";
+const char* WIFI_SSID = "Stev";                     // compiled-in fallback (2.4 GHz)
+const char* WIFI_PASS = "Sismyname";
 
 // Node server — plant meta, voice, wifi provisioning (http:// is fine here)
 const char* SERVER_BASE = "http://192.168.1.50:3000";
 
-// Cloud telemetry — where soil readings go. During development this can be
-// the Node server's mock (same URL as SERVER_BASE); for production set the
-// friend's API Gateway URL, e.g. "https://xxxx.execute-api.us-east-1.amazonaws.com"
-const char* TELEMETRY_BASE = "http://192.168.1.50:3000";
-const char* TELEMETRY_KEY = "";                     // x-gh-key shared secret, "" = none
+// Cloud telemetry — API Gateway → Lambda → DynamoDB. Body: {"soilMoisture": N}
+const char* TELEMETRY_ENDPOINT = "https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings";
 
 const char* GARDEN_ID = "REPLACE_ME";               // from the share link (?g=...)
 const char* PLANT_ID = "p1";
 
 #define SOIL_PIN 35        // ADC1 only — ADC2 is garbage while WiFi is up
-int SOIL_RAW_DRY = 3000;   // raw in open air  → 0 %   (calibrate via serial!)
-int SOIL_RAW_WET = 1300;   // raw in water     → 100 %
+int SOIL_RAW_DRY = 3000;   // raw in open air  → 0 %   (matches the working sketch)
+int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 
 #define SENSOR_POST_MS 2000
 #define META_POLL_MS 5000
@@ -180,7 +177,6 @@ struct PlantMeta {
   String name = "plant";
   String speciesId = "pothos";
   uint16_t potColor = 0xC618;
-  int light = 50;
   bool hasVoice = false;
   String voiceRev = "";
 } plant;
@@ -237,24 +233,21 @@ int readSoilPercent() {
 // ALWAYS log the response code — v1 ignored it and it cost a debugging session.
 bool postSoil(int pct) {
   if (WiFi.status() != WL_CONNECTED) return false;
-  String url = String(TELEMETRY_BASE) + "/telemetry";
   if (!telemBegun) {
-    telemHttp.setReuse(true);
+    telemHttp.setReuse(true); // one live TLS session — a full handshake per POST doesn't fit 2 s
     telemBegun = true;
   }
-  bool ok = isHttps(TELEMETRY_BASE)
-    ? telemHttp.begin(tlsClient, url)
-    : telemHttp.begin(plainClient, url);
-  if (!ok) { Serial.println("postSoil: begin() failed"); return false; }
+  if (!telemHttp.begin(tlsClient, TELEMETRY_ENDPOINT)) {
+    Serial.println("postSoil: begin() failed");
+    return false;
+  }
   telemHttp.setTimeout(1500);
   telemHttp.addHeader("Content-Type", "application/json");
-  if (strlen(TELEMETRY_KEY)) telemHttp.addHeader("x-gh-key", TELEMETRY_KEY);
-  char body[128];
-  snprintf(body, sizeof(body), "{\"gardenId\":\"%s\",\"plantId\":\"%s\",\"soilMoisture\":%d}",
-           GARDEN_ID, PLANT_ID, pct);
+  char body[48];
+  snprintf(body, sizeof(body), "{\"soilMoisture\":%d}", pct);
   int code = telemHttp.POST((uint8_t*)body, strlen(body));
   telemHttp.end(); // reuse=true keeps the socket alive
-  if (code != 200) {
+  if (code < 200 || code >= 300) {
     Serial.printf("postSoil: HTTP %d (heap %u)\n", code, ESP.getFreeHeap());
     failedPosts++;
     if (failedPosts == 5) dirty = true; // show the ☁✕ glyph
@@ -289,15 +282,12 @@ bool fetchPlant() {
   String newName = doc["name"] | "plant";
   String newPot = doc["potColor"] | "#C2C3C7";
   String newRev = doc["voiceRev"] | "";
-  int newLight = doc["light"] | 50;
   bool changed = (newSpecies != plant.speciesId) || (newName != plant.name);
   uint16_t pot = hexToRGB565(newPot);
   if (pot != plant.potColor) changed = true;
-  if (newLight != plant.light && statsView) dirty = true;
   plant.speciesId = newSpecies;
   plant.name = newName;
   plant.potColor = pot;
-  plant.light = newLight;
   plant.hasVoice = doc["hasVoice"] | false;
   if (newRev != plant.voiceRev) {
     plant.voiceRev = newRev;
@@ -462,26 +452,18 @@ void drawStatsView() {
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextPadding(0);
-  tft.drawString("soil", PX + 12, PY + 48);
-  drawBar(PX + 60, PY + 46, 150, 16, soilPct, moodCol);
+  tft.drawString("soil", PX + 12, PY + 52);
+  drawBar(PX + 60, PY + 50, 150, 16, soilPct, moodCol);
   tft.setTextDatum(TR_DATUM);
   // setTextPadding(84) on right-aligned numerics — kills the "137%" ghost bug
   tft.setTextPadding(84);
-  tft.drawString(String(soilPct) + "%", PX + PW - 12, PY + 48);
-
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextPadding(0);
-  tft.drawString("light", PX + 12, PY + 78);
-  drawBar(PX + 60, PY + 76, 150, 16, plant.light, 0xFF64);
-  tft.setTextDatum(TR_DATUM);
-  tft.setTextPadding(84);
-  tft.drawString(String(plant.light) + "%", PX + PW - 12, PY + 78);
+  tft.drawString(String(soilPct) + "%", PX + PW - 12, PY + 52);
 
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(0x8C71, TFT_BLACK);
   tft.setTextPadding(0);
-  tft.drawString("raw " + String(lastRaw), PX + 12, PY + 108);
-  tft.drawString("soil: live probe - light: simulated", PX + 12, PY + 138);
+  tft.drawString("raw " + String(lastRaw), PX + 12, PY + 92);
+  tft.drawString("live soil probe - posts every 2s", PX + 12, PY + 122);
   if (failedPosts >= 5) drawCloudFail();
 }
 

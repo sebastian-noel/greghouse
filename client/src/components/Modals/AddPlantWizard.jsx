@@ -89,7 +89,7 @@ export default function AddPlantWizard() {
     const p = {
       id: uid(), name: name.trim() || SPECIES[speciesId].suggest, speciesId,
       potColor, isReal: false, isHardware: isHW,
-      moisture: 65, soilMoisture: 65, light: 50, mood: 'happy',
+      moisture: 65, soilMoisture: 65, mood: 'happy',
       voiceGeneralUrl: voices.current.g || undefined, voiceThirstyUrl: voices.current.t || undefined,
       createdAt: Date.now(),
     };

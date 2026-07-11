@@ -1,7 +1,8 @@
-// The 2s cloud poller (v2's new heart). Every client independently fetches
-// the same integer and derives mood through the same moodFor() — the site
-// and the device never disagree. Stale >10s → "probe offline", value frozen,
-// NO simulation fallback.
+// The 2s poller for the real plant. One fetch per tick — there is exactly
+// one probe — applied to every hardware plant. Every client independently
+// fetches the same integer and derives mood through the same moodFor(), so
+// the site and the device never disagree. Stale >10s → "probe offline",
+// value frozen, NO simulation fallback.
 import { useEffect } from 'react';
 import { fetchLatest } from '../api/telemetry.js';
 import { moodFor } from '../engine/species.js';
@@ -11,51 +12,50 @@ import { POLL_TELEMETRY_MS, POLL_TELEMETRY_HIDDEN_MS, STALE_MS } from '../config
 
 export function useTelemetry() {
   const boot = useStore(s => s.boot);
-  const gardenId = useStore(s => s.garden.id);
-  const hwKey = useStore(s => s.plants.filter(isHardwarePlant).map(p => p.id).join(','));
+  const hasHardware = useStore(s => s.plants.some(isHardwarePlant));
 
   useEffect(() => {
-    if (boot !== 'ready' || !gardenId || !hwKey) return;
+    if (boot !== 'ready' || !hasHardware) return;
     let stopped = false;
     let timer = null;
-    const inflight = new Set();
+    let inflight = false;
     const interval = () => (document.hidden ? POLL_TELEMETRY_HIDDEN_MS : POLL_TELEMETRY_MS);
 
-    function apply(plantId, res) {
+    function apply(res) {
       const store = useStore.getState();
-      const plant = store.plants.find(p => p.id === plantId);
-      if (!plant) return;
-      if (!res) { // 404 — probe has never reported
-        store.setTelemetry(plantId, { soil: null, ts: null, ageMs: null, stale: true });
-        return;
-      }
-      const stale = res.ageMs > STALE_MS;
-      store.setTelemetry(plantId, { soil: res.soilMoisture, ts: res.ts, ageMs: res.ageMs, stale });
-      const newMood = moodFor(plant.speciesId, res.soilMoisture);
-      const patch = { soilMoisture: res.soilMoisture, moisture: res.soilMoisture };
-      const moodChanged = newMood !== plant.mood;
-      if (moodChanged) patch.mood = newMood;
-      // local display update — never re-synced for hardware plants (the
-      // server strips them from lite syncs anyway)
-      useStore.setState(s => ({ plants: s.plants.map(p => p.id === plantId ? { ...p, ...patch } : p) }));
+      const transitions = [];
+      const plants = store.plants.map(p => {
+        if (!isHardwarePlant(p)) return p;
+        if (!res) { // 404 — probe has never reported
+          store.setTelemetry(p.id, { soil: null, ts: null, ageMs: null, stale: true });
+          return p;
+        }
+        const stale = res.ageMs > STALE_MS;
+        store.setTelemetry(p.id, { soil: res.soilMoisture, ts: res.ts, ageMs: res.ageMs, stale });
+        const mood = moodFor(p.speciesId, res.soilMoisture);
+        const np = { ...p, soilMoisture: res.soilMoisture, moisture: res.soilMoisture, mood };
+        if (mood !== p.mood) transitions.push(np);
+        return np;
+      });
+      // local display update — the server strips hardware plants from lite
+      // syncs, so this never echoes anywhere
+      useStore.setState({ plants });
       // only the owner's client writes mood-transition chat lines — otherwise
       // N viewers would post N duplicates
-      if (moodChanged && store.isOwner()) onMoodChanged({ ...plant, ...patch }, newMood);
+      if (store.isOwner()) for (const p of transitions) onMoodChanged(p, p.mood);
     }
 
     function tick() {
       if (stopped) return;
-      const store = useStore.getState();
       const iv = interval();
-      for (const p of store.plants) {
-        if (!isHardwarePlant(p) || inflight.has(p.id)) continue; // slow fetch → drop, never queue
-        inflight.add(p.id);
+      if (!inflight) { // slow fetch → drop this tick, never queue
+        inflight = true;
         const ctrl = new AbortController();
         const abortTimer = setTimeout(() => ctrl.abort(), Math.max(500, iv - 100));
-        fetchLatest(gardenId, p.id, ctrl.signal)
-          .then(res => { if (!stopped) apply(p.id, res); })
+        fetchLatest(ctrl.signal)
+          .then(res => { if (!stopped) apply(res); })
           .catch(() => { /* network blip — freeze last value; staleness shows itself */ })
-          .finally(() => { clearTimeout(abortTimer); inflight.delete(p.id); });
+          .finally(() => { clearTimeout(abortTimer); inflight = false; });
       }
       timer = setTimeout(tick, iv);
     }
@@ -68,5 +68,5 @@ export function useTelemetry() {
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [boot, gardenId, hwKey]);
+  }, [boot, hasHardware]);
 }

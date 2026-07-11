@@ -66,6 +66,8 @@ header .spacer{flex:1;}
   border:6px solid transparent; border-top-color:var(--ink);}
 .livebadge{display:inline-block; font-family:var(--fp); font-size:7px; background:var(--alert);
   color:#fff; padding:3px 5px; border:2px solid var(--ink); vertical-align:middle;}
+.simbadge{display:inline-block; font-family:var(--fp); font-size:7px; background:var(--gray);
+  color:var(--ink); padding:3px 5px; border:2px solid var(--ink); vertical-align:middle;}
 #hint{position:absolute; left:50%; bottom:14px; transform:translateX(-50%); font-size:18px;
   background:rgba(29,43,83,.85); color:var(--cream); padding:6px 12px; border:2px solid var(--cream); z-index:8; pointer-events:none;}
 

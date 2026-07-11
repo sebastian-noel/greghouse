@@ -9,7 +9,7 @@ export default function EnterScreen() {
   const boot = useStore(s => s.boot);
   const garden = useStore(s => s.garden);
 
-  let sub = 'a garden group chat. one plant is real. the rest are lying.';
+  let sub = 'a garden group chat. come grow something.';
   if (boot === 'loading') sub = IS_VISITOR ? 'loading garden...' : sub;
   if (boot === 'notfound') sub = 'garden not found — double-check the link';
   if (boot === 'enter' && IS_VISITOR) sub = `you're visiting ${garden.ownerName}'s garden. pick a name and come in.`;
