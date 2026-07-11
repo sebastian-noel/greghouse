@@ -23,7 +23,6 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include "esp_timer.h"
-#include "memo_audio.h"
 #include "secrets.h"       // WIFI_SSID / WIFI_PASS — copy secrets.h.example, gitignored
 
 // ------------------------------------------------------------ config
@@ -44,6 +43,7 @@ int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 #define META_POLL_MS 5000
 #define WIFICFG_POLL_MS 60000
 #define AUDIO_PIN 26       // DAC1 → onboard amp → SPEAK inner pins
+#define AUDIO_VOLUME_PERCENT 10
 #define VOICE_MAX_BYTES 200000  // ≈ 25 s @ 8 kHz
 
 // XPT2046 touch (VSPI — separate bus from the TFT's HSPI)
@@ -193,18 +193,29 @@ bool voiceWanted = false;
 volatile uint8_t* voiceBuf = nullptr;
 volatile size_t voiceLen = 0;
 volatile size_t voicePos = 0;
-volatile bool voiceFromProgmem = true;
 volatile uint32_t voiceGapLeft = 0;  // samples of silence between loops
 esp_timer_handle_t audioTimer = nullptr;
 
 void audioTick(void*) {
   if (voiceGapLeft) { voiceGapLeft--; dacWrite(AUDIO_PIN, 128); return; }
-  size_t len = voiceFromProgmem ? MEMO_AUDIO_LEN : voiceLen;
-  if (!len) { dacWrite(AUDIO_PIN, 128); return; }
-  uint8_t b = voiceFromProgmem ? pgm_read_byte(&MEMO_AUDIO[voicePos]) : voiceBuf[voicePos];
-  dacWrite(AUDIO_PIN, b);
+  if (!voiceLen || !voiceBuf) { dacWrite(AUDIO_PIN, 128); return; }
+  int sample = voiceBuf[voicePos];
+  dacWrite(AUDIO_PIN, 128 + ((sample - 128) * AUDIO_VOLUME_PERCENT) / 100);
   voicePos++;
-  if (voicePos >= len) { voicePos = 0; voiceGapLeft = 24000; } // 3 s of silence, then loop
+  if (voicePos >= voiceLen) { voicePos = 0; voiceGapLeft = 24000; } // 3 s of silence, then loop
+}
+
+void clearVoice() {
+  if (!voiceBuf) return;
+  esp_timer_stop(audioTimer);
+  uint8_t* old = (uint8_t*)voiceBuf;
+  voiceBuf = nullptr;
+  voiceLen = 0;
+  voicePos = 0;
+  voiceGapLeft = 0;
+  esp_timer_start_periodic(audioTimer, 125); // 8 kHz
+  free(old);
+  Serial.println("voice cleared: no general recording");
 }
 
 // ------------------------------------------------------------- helpers
@@ -286,7 +297,9 @@ bool fetchPlant() {
   plant.speciesId = newSpecies;
   plant.name = newName;
   plant.potColor = pot;
+  bool hadVoice = plant.hasVoice;
   plant.hasVoice = doc["hasVoice"] | false;
+  if (!plant.hasVoice && hadVoice) clearVoice();
   if (newRev != plant.voiceRev) {
     plant.voiceRev = newRev;
     if (plant.hasVoice) { voiceWanted = true; tVoiceWant = millis(); }
@@ -350,7 +363,6 @@ void fetchVoice() {
   voiceLen = got;
   voicePos = 0;
   voiceGapLeft = 0;
-  voiceFromProgmem = false;
   esp_timer_start_periodic(audioTimer, 125); // 8 kHz
   if (old) free(old);
   Serial.printf("voice loaded: %u bytes\n", (unsigned)got);
