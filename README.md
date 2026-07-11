@@ -26,6 +26,10 @@ greenhouse_cyd/   ESP32 firmware (greenhouse_cyd.ino + memo_audio.h)
 ```bash
 npm install && (cd client && npm install)   # once
 
+npm start           # ← one command: Node server (:3000) + Vite dev (:5173) together
+                    #   open http://localhost:5173 · Ctrl-C stops both
+
+# or run the two halves in separate shells:
 npm run server      # Node server → http://localhost:3000
 npm run dev         # Vite dev on :5173 (proxies /api, /ws, /telemetry → :3000)
 
