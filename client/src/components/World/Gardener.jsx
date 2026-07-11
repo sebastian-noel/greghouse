@@ -52,7 +52,7 @@ export default function Gardener({ bindRef }) {
   return (
     <div id="char" ref={bindRef}>
       <Bubble bubble={bubble} />
-      <div dangerouslySetInnerHTML={{ __html: svg }} />
+<div className="bob d0" dangerouslySetInnerHTML={{ __html: svg }} />
       {selfWater && <WateringPail dir={selfWater.dir} />}
       <div className="ptag">{name}{!isVisitor ? ' ⌂' : ''}</div>
     </div>
