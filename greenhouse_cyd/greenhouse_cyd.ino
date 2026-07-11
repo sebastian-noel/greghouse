@@ -33,7 +33,7 @@ const char* SERVER_BASE = "https://supreme-edge-galaxy-choices.trycloudflare.com
 // Cloud telemetry — API Gateway → Lambda → DynamoDB. Body: {"soilMoisture": N}
 const char* TELEMETRY_ENDPOINT = "https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings";
 
-const char* GARDEN_ID = "tkAuhN86J20";              // from the share link (?g=...)
+const char* GARDEN_ID = "MYSycbpIr44";              // live garden edited by the web app
 const char* PLANT_ID = "p1";
 
 #define SOIL_PIN 35        // ADC1 only — ADC2 is garbage while WiFi is up
@@ -44,7 +44,7 @@ int SOIL_RAW_WET = 1200;   // raw in water     → 100 %
 #define META_POLL_MS 5000
 #define WIFICFG_POLL_MS 60000
 #define AUDIO_PIN 26       // DAC1 → onboard amp → SPEAK inner pins
-#define AUDIO_VOLUME_PERCENT 50
+#define AUDIO_VOLUME_PERCENT 5
 #define VOICE_MAX_BYTES 200000  // ≈ 25 s @ 8 kHz
 
 // XPT2046 touch (VSPI — separate bus from the TFT's HSPI)
@@ -354,15 +354,17 @@ void fetchVoice() {
   if (code != 200) { Serial.printf("voice.pcm -> %d\n", code); http.end(); return; }
   int total = http.getSize(); // may be -1 (chunked)
   if (total > VOICE_MAX_BYTES) { Serial.printf("voice too big: %d\n", total); http.end(); return; }
-  uint8_t* buf = (uint8_t*)malloc(VOICE_MAX_BYTES);
+  // Allocate the actual response size so TLS, graphics, and audio fit in heap.
+  const size_t capacity = total > 0 ? (size_t)total : (size_t)VOICE_MAX_BYTES;
+  uint8_t* buf = (uint8_t*)malloc(capacity);
   if (!buf) { Serial.println("voice: out of heap"); http.end(); return; }
   WiFiClient* stream = http.getStreamPtr();
   size_t got = 0;
   unsigned long t0 = millis();
-  while (http.connected() && millis() - t0 < 20000 && got < VOICE_MAX_BYTES) {
+  while (http.connected() && millis() - t0 < 20000 && got < capacity) {
     size_t avail = stream->available();
     if (avail) {
-      got += stream->readBytes(buf + got, min(avail, (size_t)(VOICE_MAX_BYTES - got)));
+      got += stream->readBytes(buf + got, min(avail, capacity - got));
       t0 = millis();
     } else if (total >= 0 && (int)got >= total) {
       break;
