@@ -1,0 +1,6 @@
+node_modules/
+client/dist/
+server/data.json
+.DS_Store
+*.log
+greenhouse_cyd/build/

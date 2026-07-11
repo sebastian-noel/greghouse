@@ -1,0 +1,17 @@
+{
+  "name": "greenhouse",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the greenhouse — a garden group chat. one plant is real. the rest are lying.",
+  "scripts": {
+    "server": "node server/index.js",
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
