@@ -1,0 +1,12 @@
+{
+  "name": "Desert Rose House",
+  "short_name": "Desert Rose",
+  "description": "A shared virtual garden.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7efdb",
+  "theme_color": "#f7efdb",
+  "icons": [
+    { "src": "/garden-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

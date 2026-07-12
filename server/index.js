@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
+import webpush from 'web-push';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'client', 'dist');
@@ -23,9 +24,15 @@ const PORT = process.env.PORT || 3000;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || '';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+const PUSH_ENABLED = !!(VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 // the friend's cloud stack — the CYD POSTs here, we GET the latest readings
 const TELEMETRY_UPSTREAM = process.env.TELEMETRY_UPSTREAM
   || 'https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings';
+
+if (PUSH_ENABLED) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 /* ---------- persistence: one JSON file, debounced writes ---------- */
 let db = { users: {}, sessions: {}, gardens: {} };
@@ -93,6 +100,39 @@ const publicGarden = g => ({
   plants: g.plants, messages: g.messages
 });
 const isHardwarePlant = p => !!(p.isHardware || p.isReal);
+
+function cleanPushSubscription(value) {
+  if (!value || typeof value !== 'object') return null;
+  let endpoint;
+  try {
+    const url = new URL(String(value.endpoint || ''));
+    if (url.protocol !== 'https:') return null;
+    endpoint = url.href;
+  } catch (e) { return null; }
+  const keys = value.keys || {};
+  const p256dh = String(keys.p256dh || '');
+  const auth = String(keys.auth || '');
+  if (!p256dh || !auth || p256dh.length > 512 || auth.length > 256) return null;
+  return { endpoint, keys: { p256dh, auth } };
+}
+
+async function sendGardenPushes(garden, notification) {
+  if (!PUSH_ENABLED || !Array.isArray(garden.pushSubscriptions) || !garden.pushSubscriptions.length) return;
+  const subscriptions = garden.pushSubscriptions.map(cleanPushSubscription).filter(Boolean);
+  const payload = JSON.stringify(notification);
+  const results = await Promise.allSettled(subscriptions.map(subscription =>
+    webpush.sendNotification(subscription, payload, { TTL: 300, urgency: 'high' })));
+  const expired = new Set();
+  results.forEach((result, index) => {
+    const status = result.status === 'rejected' ? result.reason?.statusCode : null;
+    if (status === 404 || status === 410) expired.add(subscriptions[index].endpoint);
+    else if (result.status === 'rejected') console.warn('push delivery failed:', result.reason?.message || result.reason);
+  });
+  if (expired.size) {
+    garden.pushSubscriptions = subscriptions.filter(subscription => !expired.has(subscription.endpoint));
+    persist();
+  }
+}
 const SPECIES_IDS = ['ficus', 'cactus', 'basil', 'pothos', 'monstera', 'desert_rose', 'snake_plant'];
 const PIXEL_ROW = /^[.ICGWSLDBUAKE]{16}$/;
 // This is the demo plant's hand-drawn silhouette. The shared pot and mood face
@@ -163,7 +203,11 @@ const app = express();
 app.use(express.json({ limit: '20mb' })); // voice clips ride along as data URLs
 
 app.get('/api/config', (req, res) => {
-  res.json({ googleClientId: GOOGLE_CLIENT_ID, devLogin: !GOOGLE_CLIENT_ID });
+  res.json({
+    googleClientId: GOOGLE_CLIENT_ID,
+    devLogin: !GOOGLE_CLIENT_ID,
+    push: { enabled: PUSH_ENABLED, publicKey: PUSH_ENABLED ? VAPID_PUBLIC_KEY : '' },
+  });
 });
 
 app.post('/api/gemini/analyze-plant', async (req, res) => {
@@ -260,6 +304,34 @@ app.put('/api/garden/mine', (req, res) => {
   normalizeLegacyDemoPlant(g);
   persist();
   res.json(publicGarden(g));
+});
+
+/* ---------- web push: owner devices only ---------- */
+app.post('/api/garden/mine/push-subscriptions', (req, res) => {
+  const user = getUser(req);
+  if (!user) return res.status(401).json({ error: 'not signed in' });
+  if (!PUSH_ENABLED) return res.status(503).json({ error: 'push notifications are not configured' });
+  const garden = gardenOf(user.id);
+  if (!garden) return res.status(404).json({ error: 'no garden yet' });
+  const subscription = cleanPushSubscription(req.body && req.body.subscription);
+  if (!subscription) return res.status(400).json({ error: 'invalid push subscription' });
+  const current = Array.isArray(garden.pushSubscriptions) ? garden.pushSubscriptions.map(cleanPushSubscription).filter(Boolean) : [];
+  garden.pushSubscriptions = [...current.filter(item => item.endpoint !== subscription.endpoint), subscription];
+  persist();
+  res.status(201).json({ ok: true });
+});
+
+app.delete('/api/garden/mine/push-subscriptions', (req, res) => {
+  const user = getUser(req);
+  if (!user) return res.status(401).json({ error: 'not signed in' });
+  const garden = gardenOf(user.id);
+  if (!garden) return res.status(404).json({ error: 'no garden yet' });
+  const endpoint = String(req.body && req.body.endpoint || '');
+  if (Array.isArray(garden.pushSubscriptions)) {
+    garden.pushSubscriptions = garden.pushSubscriptions.filter(item => item && item.endpoint !== endpoint);
+    persist();
+  }
+  res.json({ ok: true });
 });
 
 /* ---------- hardware setup (wifi the greenhouse module should join) ---------- */
@@ -506,6 +578,14 @@ wss.on('connection', (ws, req) => {
         plantId: plant ? plant.id : '', plantName: plant ? plant.name : 'a plant' });
       for (const c of set)
         if (c.readyState === 1 && c.meta.joined && c.meta.isOwner) c.send(payload);
+      // This is the closed-app counterpart to the owner banner above. Push
+      // delivery is best-effort; expired subscriptions are cleaned up there.
+      void sendGardenPushes(garden, {
+        title: `${plant ? plant.name : 'A plant'} needs water`,
+        body: `${meta.name} sent a watering reminder.`,
+        tag: `watering-reminder-${gid}-${plant ? plant.id : 'unknown'}`,
+        data: { url: '/' },
+      });
     }
   });
 

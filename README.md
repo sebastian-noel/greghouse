@@ -47,6 +47,13 @@ the long-running Node server.
   gitignored.
 - `PORT` overrides 3000. `GOOGLE_CLIENT_ID` enables Google sign-in and
   disables dev login. Delete `server/data.json` to reset gardens.
+- To enable phone watering reminders, set the three `VAPID_*` values in
+  `.env` (generate them once with `npx web-push generate-vapid-keys --json`),
+  restart the server, then open the owner view and turn **notifications** on.
+  On iPhone, first use Safari’s **Add to Home Screen**; Web Push works from
+  that installed web app on iOS 16.4 or later. A quick `trycloudflare.com`
+  URL changes its web-app origin whenever the tunnel restarts, so use a stable
+  Cloudflare Tunnel hostname for reliable installed-app notifications.
 - `ffmpeg` must be on PATH (voice transcoding for the CYD).
 - ⚠ **Restart the server after editing `server/index.js`** — a stale process
   404s new endpoints silently.

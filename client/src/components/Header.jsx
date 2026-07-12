@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { useStore } from '../state/store.js';
 import { audio } from '../engine/audio.js';
 import { climateImpact } from '../engine/climate.js';
+import { usePushNotifications } from '../hooks/usePushNotifications.js';
 
 function WeatherBadge() {
   const weather = useStore(s => s.weather);
@@ -22,9 +23,11 @@ export default function Header() {
   const muted = useStore(s => s.muted);
   const debugOpen = useStore(s => s.debugOpen);
   const garden = useStore(s => s.garden);
+  const config = useStore(s => s.config);
   const toast = useStore(s => s.toast);
   const openModal = useStore(s => s.openModal);
   const pressTimer = useRef(null);
+  const push = usePushNotifications(!isVisitor && !!garden.id && !!config?.push?.enabled, config?.push?.publicKey);
 
   const toggleDebug = () => useStore.setState(s => ({ debugOpen: !s.debugOpen }));
   const startPress = () => {
@@ -50,6 +53,11 @@ export default function Header() {
     }
   }
 
+  async function togglePush() {
+    const result = push.status === 'enabled' ? await push.disable() : await push.enable();
+    toast(result.message);
+  }
+
   return (
     <header>
       <h1 id="title" title="long-press for debug"
@@ -60,6 +68,11 @@ export default function Header() {
       <WeatherBadge />
       <span className="spacer" />
       <button className="small" onClick={toggleMute}>sound: {muted ? 'off' : 'on'}</button>
+      {!isVisitor && config?.push?.enabled && push.supported && (
+        <button className="small" onClick={togglePush}>
+          notifications: {push.status === 'enabled' ? 'on' : 'off'}
+        </button>
+      )}
       {!isVisitor && <button className="small" onClick={toggleDebug}>debug: {debugOpen ? 'on' : 'off'}</button>}
       {!isVisitor && <button className="small" onClick={share}>share</button>}
       {!isVisitor && <button className="small primary" onClick={() => openModal({ type: 'wizard' })}>+ add a plant</button>}
