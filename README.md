@@ -2,7 +2,7 @@
 
 > come grow something.
 
-BloomKnights 2026, A 12-hour hackathon | Built by [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/), [Alejandro](https://www.linkedin.com/in/alejaimes/), [Stevin](https://www.linkedin.com/in/georgestevin/), and [Otavio](https://www.linkedin.com/in/otavioborrelly/)
+BloomKnights 2026, A 12-hour hackathon | Built by [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/), [Alejandro](https://www.linkedin.com/in/alejaimes/), [Stevin](https://www.linkedin.com/in/georgestevin/), [Otavio](https://www.linkedin.com/in/otavioborrelly/)
 
 ![Greg Setup](IMG_1310.png)
 
