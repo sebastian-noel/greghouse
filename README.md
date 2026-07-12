@@ -1,4 +1,4 @@
-# greghouse
+# desert rose house
 
 > come grow something.
 
@@ -72,4 +72,3 @@ Connected the readings from the database in order to show the moisture levels in
 different personality types for each plant, gamifying the experience of watering plants by having fun interactions with an
 automated randomized chats in the side and having sound effects be played by proximity alongside having a vibe compared to some pixel
 art games. 
-

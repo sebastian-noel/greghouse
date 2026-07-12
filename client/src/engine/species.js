@@ -12,6 +12,8 @@ export const SPECIES = {
     personality: 'Unbothered. Quietly convinced it is immortal.', suggest: 'Ivy' },
   monstera: { commonName: 'Monstera', dryBelow: 35, soggyAbove: 80, decayPerMin: 0.9,
     personality: 'Influencer energy. Vain about every new leaf.', suggest: 'Monty' },
+  desert_rose: { commonName: 'Desert Rose', dryBelow: 20, soggyAbove: 65, decayPerMin: 0.3,
+    personality: 'Sun-loving and patient. Dramatic flowers, absolutely no wet feet.', suggest: 'Rosie' },
   snake_plant: { commonName: 'Snake plant', dryBelow: 15, soggyAbove: 60, decayPerMin: 0.2,
     personality: 'Deadpan. Sleeps through everything.', suggest: 'Sid' }
 };

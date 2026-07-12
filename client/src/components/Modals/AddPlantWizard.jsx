@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/http.js';
 import { useStore, uid, cleanPlant } from '../../state/store.js';
 import { SPECIES } from '../../engine/species.js';
+import { spriteSVG } from '../../engine/sprites.js';
 import { POT_CHOICES } from '../../engine/palette.js';
 import { getWorld } from '../../engine/worldgen.js';
 import { cam } from '../../state/runtime.js';
@@ -12,8 +13,14 @@ import { post } from '../../state/actions.js';
 import { scheduleSync } from '../../hooks/useGardenSync.js';
 import Recorder from '../Recorder.jsx';
 
-const ANALYZER_CYCLE = ['monstera', 'pothos', 'snake_plant', 'ficus', 'cactus', 'basil'];
-let analyzerIdx = 0; // persists across wizard opens (v1 state.analyzerIdx)
+function fileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('could not read that photo'));
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function AddPlantWizard() {
   const closeModal = useStore(s => s.closeModal);
@@ -21,8 +28,12 @@ export default function AddPlantWizard() {
   const [kind, setKind] = useState(null); // 'hardware' | 'sim'
   const [si, setSi] = useState(0);
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [speciesId, setSpeciesId] = useState(null);
   const [confidence, setConfidence] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
   const [name, setName] = useState('');
   const [potColor, setPotColor] = useState(POT_CHOICES[0]);
   const voices = useRef({ g: null, t: null });
@@ -38,6 +49,10 @@ export default function AddPlantWizard() {
     [kind]);
   const step = steps[si];
   const n = `step ${si + 1} of ${steps.length}`;
+
+  useEffect(() => () => {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+  }, [photoUrl]);
 
   function pickKind(k) {
     setKind(k);
@@ -63,24 +78,30 @@ export default function AddPlantWizard() {
     setSavingWifi(false);
   }
 
-  // analyzer theater: after 1.8s pick a species not already in the garden
-  const [analyzed, setAnalyzed] = useState(false);
-  useEffect(() => {
-    if (step !== 'analyze') { setAnalyzed(false); return; }
-    const t = setTimeout(() => {
-      const present = new Set(useStore.getState().plants.map(p => p.speciesId));
-      let pick = null;
-      for (let i = 0; i < ANALYZER_CYCLE.length; i++) {
-        const cand = ANALYZER_CYCLE[(analyzerIdx + i) % ANALYZER_CYCLE.length];
-        if (!present.has(cand)) { pick = cand; analyzerIdx = (analyzerIdx + i + 1) % ANALYZER_CYCLE.length; break; }
-      }
-      if (!pick) pick = ANALYZER_CYCLE[Math.floor(Math.random() * ANALYZER_CYCLE.length)];
-      setSpeciesId(pick);
-      setConfidence(88 + Math.floor(Math.random() * 10));
-      setAnalyzed(true);
-    }, 1800);
-    return () => clearTimeout(t);
-  }, [step]);
+  function choosePhoto(file) {
+    if (file.size > 5 * 1024 * 1024) { toast('choose a photo smaller than 5 MB'); return; }
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    setPhotoFile(file);
+    setPhotoUrl(URL.createObjectURL(file));
+    setAnalysis(null); setAnalysisError(''); setConfidence(null); setSpeciesId(null);
+  }
+
+  async function analyzePhoto() {
+    if (!photoFile || analyzing) return;
+    if (step === 'photo') setSi(s => s + 1);
+    setAnalyzing(true); setAnalysis(null); setAnalysisError('');
+    try {
+      const result = await api('POST', '/api/gemini/analyze-plant', { imageDataUrl: await fileDataUrl(photoFile) });
+      setAnalysis(result);
+      setSpeciesId(result.speciesId);
+      setConfidence(result.confidence);
+      setName(result.suggestedName || SPECIES[result.speciesId].suggest);
+    } catch (e) {
+      setAnalysisError(e.message || 'could not analyze that photo');
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   function finish() {
     const store = useStore.getState();
@@ -91,6 +112,9 @@ export default function AddPlantWizard() {
       potColor, isReal: false, isHardware: isHW,
       moisture: 65, soilMoisture: 65, mood: 'happy',
       voiceGeneralUrl: voices.current.g || undefined, voiceThirstyUrl: voices.current.t || undefined,
+      customSpriteRows: analysis?.customSpriteRows,
+      identifiedSpecies: analysis?.identifiedSpecies,
+      identificationConfidence: analysis?.confidence,
       createdAt: Date.now(),
     };
     store.setPlants([...store.plants, p].map(cleanPlant), 'full');
@@ -160,11 +184,11 @@ export default function AddPlantWizard() {
           {photoUrl && <div className="photo-prev"><img src={photoUrl} alt="your plant" /></div>}
           <div className="row">
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr"
-              onChange={e => { const f = e.target.files && e.target.files[0]; if (f) setPhotoUrl(URL.createObjectURL(f)); }} />
+              onChange={e => { const f = e.target.files && e.target.files[0]; if (f) choosePhoto(f); }} />
             <button className="small primary" onClick={() => fileRef.current.click()}>
               {photoUrl ? 'retake photo' : 'choose photo'}
             </button>
-            {photoUrl && <button className="small" onClick={() => setSi(s => s + 1)}>analyze</button>}
+            {photoUrl && <button className="small" onClick={analyzePhoto}>analyze</button>}
           </div>
         </>
       )}
@@ -174,20 +198,48 @@ export default function AddPlantWizard() {
           <p>{n} — analyzing...</p>
           <div className="photo-prev">
             {photoUrl ? <img src={photoUrl} alt="your plant" /> : <div style={{ height: 140 }} />}
-            {!analyzed && <div className="scanline" />}
+            {analyzing && <div className="scanline" />}
           </div>
-          {analyzed && (
+          {analyzing && (
+            <div className="analysis-loading" role="status" aria-live="polite">
+              <span className="analysis-loader" aria-hidden="true" />
+              <span>Gemini is identifying your plant...</span>
+            </div>
+          )}
+          {analysis && (
             <div>
-              <p>we think it is a <b>{SPECIES[speciesId].commonName}</b> ({confidence}%)</p>
-              <p className="mini">species identification is faked in this test build</p>
               <div className="row">
-                <span className="mini">not right?</span>
+                <div dangerouslySetInnerHTML={{ __html: spriteSVG({ name: name || 'your plant', speciesId, potColor, mood: 'happy', customSpriteRows: analysis.customSpriteRows }, 5) }} />
+                <div>
+                  <p>Gemini sees <b>{analysis.identifiedSpecies}</b> ({confidence}%)</p>
+                  {!!analysis.visualTraits.length && <p className="mini">{analysis.visualTraits.join(' · ')}</p>}
+                </div>
+              </div>
+              <div className="row">
+                <span className="mini">care profile</span>
                 <select value={speciesId} onChange={e => setSpeciesId(e.target.value)}>
                   {Object.entries(SPECIES).map(([id, s]) => <option key={id} value={id}>{s.commonName}</option>)}
                 </select>
               </div>
               <div className="row end">
-                <button className="small primary" onClick={() => { setName(SPECIES[speciesId].suggest); setSi(s => s + 1); }}>looks right</button>
+                <button className="small" onClick={analyzePhoto}>analyze again</button>
+                <button className="small primary" onClick={() => setSi(s => s + 1)}>looks right</button>
+              </div>
+            </div>
+          )}
+          {analysisError && (
+            <div>
+              <p className="mini" style={{ color: 'var(--alert)' }}>{analysisError}</p>
+              <div className="row">
+                <span className="mini">choose a care profile</span>
+                <select value={speciesId || ''} onChange={e => setSpeciesId(e.target.value)}>
+                  <option value="" disabled>select one</option>
+                  {Object.entries(SPECIES).map(([id, s]) => <option key={id} value={id}>{s.commonName}</option>)}
+                </select>
+              </div>
+              <div className="row end">
+                <button className="small" onClick={analyzePhoto}>retry</button>
+                <button className="small primary" disabled={!speciesId} onClick={() => { setName(SPECIES[speciesId].suggest); setSi(s => s + 1); }}>use classic sprite</button>
               </div>
             </div>
           )}

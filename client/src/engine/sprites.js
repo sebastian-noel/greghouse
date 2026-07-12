@@ -78,6 +78,19 @@ monstera: withPot([
   '.......W........',
   '...SSSSWSSSS....'
 ]),
+desert_rose: withPot([
+  '.....KCK........',
+  '...KCKKKCK......',
+  '..KKKKUKKKK.....',
+  '...KCKKKCK......',
+  '....KKKKK.......',
+  '..DLLL.LLLD.....',
+  '.DLLLL.LLLLD....',
+  '...D...W...D....',
+  '....D.WWW.D.....',
+  '.....WWWWW......',
+  '....SSSWWWSS....'
+]),
 snake_plant: withPot([
   '.......U........',
   '..U...DLD...U...',
@@ -99,9 +112,17 @@ export const FACES = {
   drowning: [[12,5,'I'],[12,6,'I'],[12,9,'I'],[12,10,'I'],[13,7,'I'],[13,8,'I'],[14,7,'I'],[14,8,'I'],[8,3,'B'],[9,12,'B'],[7,12,'B']]
 };
 
+const PIXEL_ROW = /^[.ICGWSLDBUAKE]{16}$/;
+function rowsForPlant(plant) {
+  const rows = plant.customSpriteRows;
+  if (Array.isArray(rows) && rows.length === 11 && rows.every(row => typeof row === 'string' && PIXEL_ROW.test(row)))
+    return rows.concat(POT_ROWS);
+  return SPRITES[plant.speciesId] || SPRITES.pothos;
+}
+
 export function spriteSVG(plant, scale) {
   scale = scale || 5;
-  const grid = (SPRITES[plant.speciesId] || SPRITES.pothos).map(r => r.split(''));
+  const grid = rowsForPlant(plant).map(r => r.split(''));
   for (const [r, c, k] of FACES[plant.mood] || FACES.happy) {
     if (grid[r] && grid[r][c] !== undefined) grid[r][c] = k;
   }

@@ -55,7 +55,7 @@ export default function Header() {
       <h1 id="title" title="long-press for debug"
         onPointerDown={startPress} onPointerUp={endPress} onPointerLeave={endPress}
         onDoubleClick={() => { if (!isVisitor) toggleDebug(); }}>
-        welcome to greghouse, your virtual garden
+        welcome to desert rose house, your virtual garden
       </h1>
       <WeatherBadge />
       <span className="spacer" />

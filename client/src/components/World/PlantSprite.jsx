@@ -41,7 +41,7 @@ export default function PlantSprite({ plant, spot, index }) {
   const canWarn = useStore(s => s.nearWarnId === plant.id);
   const ownerName = useStore(s => s.garden.ownerName);
   const watering = useStore(s => !!s.waterFx[plant.id]);
-  const svg = useMemo(() => spriteSVG(plant, 5), [plant.speciesId, plant.mood, plant.potColor, plant.name]);
+  const svg = useMemo(() => spriteSVG(plant, 5), [plant.speciesId, plant.mood, plant.potColor, plant.name, plant.customSpriteRows]);
   if (!spot) return null;
   const hw = isHardwarePlant(plant);
   const offline = hw && (!telem || telem.stale);

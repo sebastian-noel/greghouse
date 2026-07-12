@@ -64,6 +64,7 @@ const Species SPECIES_TABLE[] = {
   { "basil", 45, 85 },
   { "pothos", 30, 85 },
   { "monstera", 35, 80 },
+  { "desert_rose", 20, 65 },
   { "snake_plant", 15, 60 },
 };
 const int SPECIES_COUNT = sizeof(SPECIES_TABLE) / sizeof(SPECIES_TABLE[0]);
@@ -130,6 +131,11 @@ const char* GRID_MONSTERA[11] = {
   "..DLL.LLLLLLD...", "..DLLLLL.LLLD...", "...DLLLLLLLD....", "....DDLWLDD.....",
   ".......W........", ".......W........", "...SSSSWSSSS....",
 };
+const char* GRID_DESERT_ROSE[11] = {
+  ".....KCK........", "...KCKKKCK......", "..KKKKUKKKK.....", "...KCKKKCK......",
+  "....KKKKK.......", "..DLLL.LLLD.....", ".DLLLL.LLLLD....", "...D...W...D....",
+  "....D.WWW.D.....", ".....WWWWW......", "....SSSWWWSS....",
+};
 const char* GRID_SNAKE[11] = {
   ".......U........", "..U...DLD...U...", ".DLD..DLD..DLD..", ".DLD..DLD..DLD..",
   ".DLD..DLD..DLD..", ".DLD..DLD..DLD..", ".DLD..DLD..DLD..", "..DLD.DLD.DLD...",
@@ -155,6 +161,7 @@ const char** gridForSpecies(const String& id) {
   if (id == "cactus") return GRID_CACTUS;
   if (id == "basil") return GRID_BASIL;
   if (id == "monstera") return GRID_MONSTERA;
+  if (id == "desert_rose") return GRID_DESERT_ROSE;
   if (id == "snake_plant") return GRID_SNAKE;
   return GRID_POTHOS;
 }
@@ -515,11 +522,13 @@ void drawStatsView() {
     { "basil",       "Basil",        "Anxious and needy. Aware it", "is technically a salad",     "ingredient."   },
     { "pothos",      "Pothos",       "Unbothered. Quietly",         "convinced it is immortal.",  ""              },
     { "monstera",    "Monstera",     "Influencer energy. Vain",     "about every new leaf.",      ""              },
+    { "desert_rose", "Desert Rose",  "Sun-loving and patient.",     "Dramatic flowers, no",       "wet feet."      },
     { "snake_plant", "Snake plant",  "Deadpan. Sleeps through",     "everything.",                ""              },
   };
+  const int DISPLAY_COUNT = sizeof(DISPLAY_TABLE) / sizeof(DISPLAY_TABLE[0]);
 
   const SpeciesDisplay* sp = &DISPLAY_TABLE[3]; // pothos fallback
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < DISPLAY_COUNT; i++) {
     if (plant.speciesId == DISPLAY_TABLE[i].id) { sp = &DISPLAY_TABLE[i]; break; }
   }
 

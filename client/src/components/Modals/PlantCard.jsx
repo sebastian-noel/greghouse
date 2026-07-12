@@ -33,7 +33,7 @@ export default function PlantCard({ plantId }) {
   const updatePlant = useStore(s => s.updatePlant);
   const toast = useStore(s => s.toast);
   const [rerec, setRerec] = useState(false);
-  const svg = useMemo(() => (plant ? spriteSVG(plant, 5) : ''), [plant?.speciesId, plant?.mood, plant?.potColor]);
+  const svg = useMemo(() => (plant ? spriteSVG(plant, 5) : ''), [plant?.speciesId, plant?.mood, plant?.potColor, plant?.customSpriteRows]);
 
   if (!plant) { closeModal(); return null; }
   const sp = SPECIES[plant.speciesId];

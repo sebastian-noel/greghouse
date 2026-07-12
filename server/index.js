@@ -21,6 +21,8 @@ const DIST = path.join(__dirname, '..', 'client', 'dist');
 const DATA_FILE = path.join(__dirname, 'data.json');
 const PORT = process.env.PORT || 3000;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 // the friend's cloud stack — the CYD POSTs here, we GET the latest readings
 const TELEMETRY_UPSTREAM = process.env.TELEMETRY_UPSTREAM
   || 'https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings';
@@ -38,6 +40,36 @@ function persist() {
     });
   }, 500);
 }
+
+function normalizeLegacyDemoPlant(garden) {
+  let changed = false;
+  for (const plant of garden.plants || []) {
+    if (plant.isReal && plant.name === 'Desert Rose') {
+      plant.name = 'Greg';
+      changed = true;
+    }
+    if (plant.isReal && plant.name === 'Greg' && plant.speciesId === 'ficus') {
+      plant.speciesId = 'desert_rose';
+      changed = true;
+    }
+  }
+  for (const message of garden.messages || []) {
+    if (typeof message.text !== 'string') continue;
+    const text = message.text.replace(/\bDesert Rose\b/g, 'Greg');
+    if (text !== message.text) { message.text = text; changed = true; }
+  }
+  return changed;
+}
+
+function migrateLegacyDemoPlants() {
+  let changed = false;
+  for (const garden of Object.values(db.gardens || {})) {
+    if (normalizeLegacyDemoPlant(garden)) changed = true;
+  }
+  if (changed) persist();
+}
+
+migrateLegacyDemoPlants();
 
 const rid = n => crypto.randomBytes(n).toString('base64url');
 
@@ -61,6 +93,70 @@ const publicGarden = g => ({
   plants: g.plants, messages: g.messages
 });
 const isHardwarePlant = p => !!(p.isHardware || p.isReal);
+const SPECIES_IDS = ['ficus', 'cactus', 'basil', 'pothos', 'monstera', 'desert_rose', 'snake_plant'];
+const PIXEL_ROW = /^[.ICGWSLDBUAKE]{16}$/;
+// This is the demo plant's hand-drawn silhouette. The shared pot and mood face
+// are still added by the client just like every other detected plant.
+const DESERT_ROSE_ROWS = [
+  '.....KCK........',
+  '...KCKKKCK......',
+  '..KKKKUKKKK.....',
+  '...KCKKKCK......',
+  '....KKKKK.......',
+  '..DLLL.LLLD.....',
+  '.DLLLL.LLLLD....',
+  '...D...W...D....',
+  '....D.WWW.D.....',
+  '.....WWWWW......',
+  '....SSSWWWSS....',
+];
+
+function clippedText(value, limit) {
+  return String(value || '').replace(/[\r\n]+/g, ' ').trim().slice(0, limit);
+}
+
+function isDesertRose(identifiedSpecies) {
+  const name = clippedText(identifiedSpecies, 80).toLowerCase();
+  return name.includes('adenium') || name.includes('desert rose');
+}
+
+function normalizePlantAnalysis(value) {
+  const rows = value && value.customSpriteRows;
+  const identifiedSpecies = clippedText(value.identifiedSpecies, 48) || 'Unknown plant';
+  const desertRose = isDesertRose(identifiedSpecies);
+  const speciesId = desertRose ? 'desert_rose' : (SPECIES_IDS.includes(value.speciesId) ? value.speciesId : 'pothos');
+  if (!desertRose) {
+    if (!Array.isArray(rows) || rows.length !== 11 || !rows.every(row => typeof row === 'string' && PIXEL_ROW.test(row)))
+      throw new Error('Gemini returned an invalid pixel grid');
+    const pixels = rows.join('').replace(/\./g, '').length;
+    if (pixels < 12 || pixels > 140 || rows[10].replace(/\./g, '').length === 0)
+      throw new Error('Gemini returned an unusable pixel grid');
+  }
+  return {
+    speciesId,
+    identifiedSpecies,
+    confidence: Math.max(0, Math.min(100, Math.round(Number(value.confidence) || 0))),
+    suggestedName: clippedText(value.suggestedName, 12),
+    visualTraits: Array.isArray(value.visualTraits)
+      ? value.visualTraits.slice(0, 3).map(t => clippedText(t, 36)).filter(Boolean) : [],
+    customSpriteRows: desertRose ? DESERT_ROSE_ROWS : rows,
+  };
+}
+
+function geminiSchema() {
+  return {
+    type: 'OBJECT',
+    properties: {
+      speciesId: { type: 'STRING', enum: SPECIES_IDS },
+      identifiedSpecies: { type: 'STRING' },
+      confidence: { type: 'INTEGER' },
+      suggestedName: { type: 'STRING' },
+      visualTraits: { type: 'ARRAY', items: { type: 'STRING' } },
+      customSpriteRows: { type: 'ARRAY', items: { type: 'STRING' } },
+    },
+    required: ['speciesId', 'identifiedSpecies', 'confidence', 'suggestedName', 'visualTraits', 'customSpriteRows'],
+  };
+}
 
 /* ---------- http api ---------- */
 const app = express();
@@ -68,6 +164,38 @@ app.use(express.json({ limit: '20mb' })); // voice clips ride along as data URLs
 
 app.get('/api/config', (req, res) => {
   res.json({ googleClientId: GOOGLE_CLIENT_ID, devLogin: !GOOGLE_CLIENT_ID });
+});
+
+app.post('/api/gemini/analyze-plant', async (req, res) => {
+  if (!getUser(req)) return res.status(401).json({ error: 'not signed in' });
+  if (!GEMINI_API_KEY) return res.status(503).json({ error: 'Gemini is not configured on this server' });
+  const imageDataUrl = String(req.body && req.body.imageDataUrl || '');
+  const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|webp|heic|heif));base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) return res.status(400).json({ error: 'choose a JPEG, PNG, WebP, HEIC, or HEIF photo' });
+  const image = Buffer.from(match[2], 'base64');
+  if (!image.length || image.length > 5 * 1024 * 1024) return res.status(413).json({ error: 'photo must be smaller than 5 MB' });
+
+  const prompt = `Analyze this photo of one plant. Identify the closest care profile from: ${SPECIES_IDS.join(', ')}. If it is a Desert Rose, identify it as "Adenium obesum (Desert Rose)". Then compile the plant's unique silhouette into exactly 11 strings of 16 pixel characters. Allowed characters are . I C G W S L D B U A K E. Dot is transparent; use leaf, stem, highlight, and damage colors to preserve leaf direction, density, variegation, and visible asymmetry. Do not draw a pot, face, background, text, border, or shadow. The final row must contain visible plant pixels. Return only the requested JSON.`;
+  try {
+    const upstream = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+      {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: match[1].toLowerCase(), data: match[2] } }] }],
+          generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: geminiSchema() },
+        }),
+      },
+    );
+    const payload = await upstream.json();
+    if (!upstream.ok) throw new Error(payload.error?.message || 'Gemini request failed');
+    const text = payload.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+    if (!text) throw new Error('Gemini did not return an analysis');
+    res.json(normalizePlantAnalysis(JSON.parse(text)));
+  } catch (e) {
+    console.warn('gemini plant analysis failed:', e.message);
+    res.status(502).json({ error: 'could not analyze this plant photo, try another clear photo' });
+  }
 });
 
 app.post('/api/auth/google', async (req, res) => {
@@ -129,6 +257,7 @@ app.put('/api/garden/mine', (req, res) => {
     dims: { W: dims.W | 0, H: dims.H | 0 },
     plants, messages: (messages || []).slice(-50), updatedAt: Date.now()
   });
+  normalizeLegacyDemoPlant(g);
   persist();
   res.json(publicGarden(g));
 });
@@ -346,6 +475,7 @@ wss.on('connection', (ws, req) => {
         }
       }
       if (Array.isArray(g.messages)) garden.messages = g.messages.slice(-50);
+      normalizeLegacyDemoPlant(garden);
       garden.updatedAt = Date.now();
       persist();
       roomSend(gid, { t: 'garden-lite',
@@ -358,9 +488,11 @@ wss.on('connection', (ws, req) => {
       if (Array.isArray(g.messages)) garden.messages = g.messages.slice(-50);
       if (typeof g.seed === 'number') garden.seed = g.seed;
       if (g.dims) garden.dims = { W: g.dims.W | 0, H: g.dims.H | 0 };
+      normalizeLegacyDemoPlant(garden);
       garden.updatedAt = Date.now();
       persist();
       roomSend(gid, { t: 'garden-full', g: publicGarden(garden) }, ws);
+      ws.send(JSON.stringify({ t: 'garden-full', g: publicGarden(garden) }));
 
     } else if (m.t === 'need-full') {
       ws.send(JSON.stringify({ t: 'garden-full', g: publicGarden(garden) }));

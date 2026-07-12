@@ -38,6 +38,13 @@ monstera:{
   ambient:['new leaf just dropped. yes i am serious. no photos yet','rate my angle toward the sun. 10s only','considering a rebrand. same plant, more mysterious'],
   reaction:['{other} babe this is not the content we planned','so brave {other}. anyway back to me','{other} hydration is self-care, look it up'],
   intro:['the garden just got 40% more iconic. hi.','new plant, who dis']},
+desert_rose:{
+  becameThirsty:['a little dry. this is familiar, but a drink would be lovely.','saving every drop for the next bloom.'],
+  becameHappy:['sun, water, flowers. order restored.','roots are happy. petals are considering an appearance.'],
+  becameDrowning:['my roots requested a desert, not a swimming pool.','too wet. the drama is botanical now.'],
+  ambient:['saving my best flowers for the right lighting','the sun and i have an appointment','growing slowly. looking excellent.'],
+  reaction:['{other}, hydrate with grace.','sending sunny thoughts to {other}.','{other}, we can bloom through this.'],
+  intro:['new roots in town. keep it sunny.','hello. admire the flowers responsibly.']},
 snake_plant:{
   becameThirsty:['dry. noted. waking up in 3-5 business days','thirst detected. urgency not found'],
   becameHappy:['fine. sleeping.','moisture ok. do not perceive me'],
