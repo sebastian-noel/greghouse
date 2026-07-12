@@ -3,7 +3,7 @@
 self.addEventListener('push', event => {
   let message = {};
   try { message = event.data ? event.data.json() : {}; } catch (e) { message = {}; }
-  const title = message.title || 'Desert Rose House';
+  const title = message.title || 'Greg House';
   event.waitUntil(self.registration.showNotification(title, {
     body: message.body || 'A plant needs your attention.',
     icon: '/garden-icon.svg',
