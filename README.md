@@ -1,15 +1,18 @@
-# desert rose house
+# greghouse
 
 > come grow something.
 
 BloomKnights 2026 | Sebastian, Alejandro, Stevin, Otavio
 
-A multiplayer virtual-garden web app where the owner grows pixel-art plants with
-moods, chat, and recorded voices and allow visitors walk around the same garden live
-over a shared experience, this being modeled after our first **hardware prototype plant** being mirrored into an ESP32
-alongside a soil probing moisture sensor to detect the amount of water needed by the plant
-every 2 seconds. The other plants are simulated (one diagnostic device, many
-plants), the web app include card badges say which is which (LIVE SENSOR / SIMULATED).
+A multiplayer virtual-garden web where where the owner grows pixel-art plants with
+moods, chats and recorded voices. Vistors are able to walk around the garden over a
+shared experience. The owner is able to create virtual plants as well as being able
+to connect their own living plant into the virtual garden through a novel device.
+The device consists of a ESP32 and a probing moisture sensor that detects the soil
+moisture percentage, all enclosed in a 3D printed structure. The moisture percentage
+affects the plant's mood and other players are able to alarm the owner if the moisture
+is low. 
+
 
 
 ## Running it
@@ -47,13 +50,6 @@ the long-running Node server.
   gitignored.
 - `PORT` overrides 3000. `GOOGLE_CLIENT_ID` enables Google sign-in and
   disables dev login. Delete `server/data.json` to reset gardens.
-- To enable phone watering reminders, set the three `VAPID_*` values in
-  `.env` (generate them once with `npx web-push generate-vapid-keys --json`),
-  restart the server, then open the owner view and turn **notifications** on.
-  On iPhone, first use Safari’s **Add to Home Screen**; Web Push works from
-  that installed web app on iOS 16.4 or later. A quick `trycloudflare.com`
-  URL changes its web-app origin whenever the tunnel restarts, so use a stable
-  Cloudflare Tunnel hostname for reliable installed-app notifications.
 - `ffmpeg` must be on PATH (voice transcoding for the CYD).
 - ⚠ **Restart the server after editing `server/index.js`** — a stale process
   404s new endpoints silently.
@@ -79,3 +75,4 @@ Connected the readings from the database in order to show the moisture levels in
 different personality types for each plant, gamifying the experience of watering plants by having fun interactions with an
 automated randomized chats in the side and having sound effects be played by proximity alongside having a vibe compared to some pixel
 art games. 
+
