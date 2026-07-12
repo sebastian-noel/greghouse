@@ -1,8 +1,8 @@
-# greghouse 🌱 | 🏆 3rd Best Overall @ BloomKnights 2026
+# greghouse 🌱 | 🏆 3rd Best Overall @ BloomKnights
 
 > come *grow* something.
 
-**Made at** [BloomKnights](https://bloom.knighthacks.org/) · A 12-hour hackathon by [Knight Hacks](https://club.knighthacks.org/)
+**Made at** [BloomKnights](https://bloom.knighthacks.org/) 2026 · A 12-hour hackathon by [Knight Hacks](https://club.knighthacks.org/)
 
 **Built by** [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/) · [Alejandro](https://www.linkedin.com/in/alejaimes/) · [Stevin](https://www.linkedin.com/in/georgestevin/) · [Otavio](https://www.linkedin.com/in/otavioborrelly/)
 
