@@ -4,6 +4,8 @@
 
 BloomKnights 2026 | Sebastian, Alejandro, Stevin, Otavio
 
+![Greg Setup](IMG_1310.png)
+
 A multiplayer virtual-garden web where where the owner grows pixel-art plants with
 moods, chats and recorded voices. Vistors are able to walk around the garden over a
 shared experience. The owner is able to create virtual plants as well as being able
