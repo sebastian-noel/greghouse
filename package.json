@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "the greenhouse — a garden group chat. one plant is real. the rest are lying.",
+  "description": "greghouse — a tamagotchi for your plants connected to a gamified virtual garden social experience",
   "scripts": {
     "postinstall": "npm --prefix client install",
     "start": "concurrently -k -n server,client -c green,cyan \"npm run server\" \"npm run dev\"",

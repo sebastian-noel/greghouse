@@ -28,7 +28,7 @@ const VAPID_SUBJECT = process.env.VAPID_SUBJECT || '';
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 const PUSH_ENABLED = !!(VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
-// the friend's cloud stack — the CYD POSTs here, we GET the latest readings
+// aws cloudwatch logs tail /aws/lambda/greghouse-telemetry --follow --since 1h
 const TELEMETRY_UPSTREAM = process.env.TELEMETRY_UPSTREAM
   || 'https://gg4ghv6ns8.execute-api.us-east-1.amazonaws.com/readings';
 
@@ -135,8 +135,7 @@ async function sendGardenPushes(garden, notification) {
 }
 const SPECIES_IDS = ['ficus', 'cactus', 'basil', 'pothos', 'monstera', 'desert_rose', 'snake_plant'];
 const PIXEL_ROW = /^[.ICGWSLDBUAKE]{16}$/;
-// This is the demo plant's hand-drawn silhouette. The shared pot and mood face
-// are still added by the client just like every other detected plant.
+// the real plant
 const DESERT_ROSE_ROWS = [
   '.....KCK........',
   '...KCKKKCK......',

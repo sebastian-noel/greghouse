@@ -2,9 +2,14 @@
 
 > come grow something.
 
-BloomKnights 2026, A 12-hour hackathon | Built by [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/), [Alejandro](https://www.linkedin.com/in/alejaimes/), [Stevin](https://www.linkedin.com/in/georgestevin/), [Otavio](https://www.linkedin.com/in/otavioborrelly/)
+**Built at** [BloomKnights](https://bloom.knighthacks.org/) 2026 — a 12-hour hackathon by [Knight Hacks](https://club.knighthacks.org/)
 
-![Greg Setup](IMG_1310.png)
+**By** [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/) · [Alejandro](https://www.linkedin.com/in/alejaimes/) · [Stevin](https://www.linkedin.com/in/georgestevin/) · [Otavio](https://www.linkedin.com/in/otavioborrelly/)
+
+**See greghouse in action:** [Devpost](https://devpost.com/software/greghouse) · [YouTube Demo](https://www.youtube.com/watch?v=eeHd84B9r5A)
+
+
+![Greg Setup](greg.png)
 
 A **multiplayer virtual-garden** web where where the owner grows **pixel-art plants with
 moods, chats and recorded voices**. Vistors are able to walk around the garden over a
