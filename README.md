@@ -1,17 +1,17 @@
-# greghouse
+# greghouse 🌱
 
 > come grow something.
 
-BloomKnights 2026 | Sebastian, Alejandro, Stevin, Otavio
+BloomKnights 2026, A 12-hour hackathon | Built by [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/), [Alejandro](https://www.linkedin.com/in/alejaimes/), [Stevin](https://www.linkedin.com/in/georgestevin/), and [Otavio](https://www.linkedin.com/in/otavioborrelly/)
 
 ![Greg Setup](IMG_1310.png)
 
-A multiplayer virtual-garden web where where the owner grows pixel-art plants with
-moods, chats and recorded voices. Vistors are able to walk around the garden over a
-shared experience. The owner is able to create virtual plants as well as being able
+A **multiplayer virtual-garden** web where where the owner grows **pixel-art plants with
+moods, chats and recorded voices**. Vistors are able to walk around the garden over a
+**shared experience**. The owner is able to create virtual plants as well as being able
 to connect their own living plant into the virtual garden through a novel device.
-The device consists of a ESP32 and a probing moisture sensor that detects the soil
-moisture percentage, all enclosed in a 3D printed structure. The moisture percentage
+The device consists of a **ESP32 and a probing moisture sensor** that detects the soil
+moisture percentage, all enclosed in a **3D printed structure**. The moisture percentage
 affects the plant's mood and other players are able to alarm the owner if the moisture
 is low. 
 
@@ -31,8 +31,8 @@ npm run tunnel      # expose :3000 publicly via cloudflared (share links + CYD)
 
 ## Public hosting
 
-This app is hosted like the prototype in `Documents/Projects/testt`: a
-long-running local Node process serves the app, API, WebSocket, and garden
+This app is hosted with a long-running local 
+Node process that serves the app, API, WebSocket, and garden
 database, while Cloudflare Tunnel exposes port 3000 publicly.
 
 ```bash
@@ -65,7 +65,7 @@ ESP32-2432S028: ST7789 2.8" TFT, XPT2046 resistive touch, CH340 serial. Capaciti
 (ADC1 — ADC2 is garbage while WiFi is up): AOUT→P3 "IO35", VCC→CN1 3V3,
 GND→CN1 GND. Speaker on SPEAK's tiny inner pins (GPIO26 DAC) will then get to the cloud.
 
-## Soil telemetry — the cloud part (LIVE)
+## Soil telemetry — sent through AWS cloud
 
 The cloud will receive the JSON readings from the ESP32 which is necessary for the soil
 moisture to be detected, which will then be pushed to AWS/Lambda using DynamoDB, as well as creating from there the timestamp
@@ -75,6 +75,5 @@ and the plantID necessary.
 
 Connected the readings from the database in order to show the moisture levels in real time in the web and making
 different personality types for each plant, gamifying the experience of watering plants by having fun interactions with an
-automated randomized chats in the side and having sound effects be played by proximity alongside having a vibe compared to some pixel
-art games. 
+automated randomized chats in the side and having sound effects be played by proximity alongside a pixel-art styled vibe.
 
