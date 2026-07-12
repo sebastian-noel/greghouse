@@ -1,12 +1,12 @@
-# greghouse 🌱
+# greghouse 🌱 | 🏆 3rd Best Overall @ BloomKnights 2026
 
-> come grow something.
+> come *grow* something.
 
-**Built at** [BloomKnights](https://bloom.knighthacks.org/) 2026 — a 12-hour hackathon by [Knight Hacks](https://club.knighthacks.org/)
+**Made at** [BloomKnights](https://bloom.knighthacks.org/) · A 12-hour hackathon by [Knight Hacks](https://club.knighthacks.org/)
 
-**By** [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/) · [Alejandro](https://www.linkedin.com/in/alejaimes/) · [Stevin](https://www.linkedin.com/in/georgestevin/) · [Otavio](https://www.linkedin.com/in/otavioborrelly/)
+**Built by** [Sebastian](https://www.linkedin.com/in/sebastian-noel-ucf/) · [Alejandro](https://www.linkedin.com/in/alejaimes/) · [Stevin](https://www.linkedin.com/in/georgestevin/) · [Otavio](https://www.linkedin.com/in/otavioborrelly/)
 
-**See greghouse in action:** [Devpost](https://devpost.com/software/greghouse) · [YouTube Demo](https://www.youtube.com/watch?v=eeHd84B9r5A)
+**See greghouse in action 🔗:** [Devpost](https://devpost.com/software/greghouse) · [YouTube Demo](https://www.youtube.com/watch?v=eeHd84B9r5A)
 
 
 ![Greg Setup](greg.png)
@@ -81,4 +81,8 @@ and the plantID necessary.
 Connected the readings from the database in order to show the moisture levels in real time in the web and making
 different personality types for each plant, gamifying the experience of watering plants by having fun interactions with an
 automated randomized chats in the side and having sound effects be played by proximity alongside a pixel-art styled vibe.
+
+### Why is this called *greghouse*?
+
+We like Doctor House, and this is a virtual garden acts as a greenhouse for you to grow all your plants together... so we combined it to show our beloved character alive as a flowery friend :)
 
